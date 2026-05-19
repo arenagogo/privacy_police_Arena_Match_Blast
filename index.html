@@ -1,3 +1,3622 @@
+Gemini
+Memanggil AlertPopup di Script Lain
+Percakapan baru
+Item Buatan Saya
+Notebook
+Notebook baru
+Gem
+Percakapan
+Memanggil AlertPopup di Script Lain
+Mengatasi Error List Index Out Of Range
+Unity ID 2FA Lockout Recovery Steps
+Cara Kerja CDI Shogun Kebo
+Galant Hiu 6A13: Delco dan Sensor
+hilangkan warna hitamnya ambil glownya saja
+Implementasi Es di Game Match-3
+Sports Equipment Icons Redesign
+Cara Kerja Sinyal Pulser Pengapian
+Menambahkan Tombol SSO Manual
+Teknologi Game 3D Web Terbaik
+Inisialisasi Firebase Aman di Unity
+Analisis Log Runtime Game ArenaFarm
+Perbaikan Race Condition SSO Game
+Mengatasi Deep Link iOS Unity
+
+Setelan & bantuan
+Percakapan dengan Gemini
+ini cara panggilnya di script lain gimana??
+
+Halo, Abang! Untuk memanggil dan menggunakan script AlertPopup ini di script lain, cara utamanya adalah dengan mendapatkan reference (referensi) ke komponen tersebut, lalu memanggil fungsi SetTitle dan SetText.
+
+Karena class ini merupakan turunan dari Popup (bawaan dari asset GameVanilla), biasanya base class tersebut sudah punya fungsi untuk memunculkan popup-nya (misalnya Open(), Show(), atau di-handle oleh sebuah PopupManager).
+
+Berikut adalah dua cara umum yang bisa Abang gunakan di Unity:
+
+Cara 1: Menggunakan Direct Reference (Via Inspector)
+Ini cara paling sederhana jika popup-nya sudah ada di dalam Scene. Abang tinggal membuat variabel referensi di script lain, lalu menghubungkannya (drag and drop) lewat Inspector Unity.
+
+C#
+using UnityEngine;
+// Wajib memanggil namespace tempat AlertPopup berada
+using GameVanilla.Game.Popups; 
+
+public class ScriptLain : MonoBehaviour
+{
+    // Slot ini akan muncul di Inspector Unity. 
+    // Drag GameObject AlertPopup ke slot ini.
+    public AlertPopup alertPopupRef;
+
+    public void TampilkanPeringatan()
+    {
+        if (alertPopupRef != null)
+        {
+            // 1. Ubah teks judul dan isinya
+            alertPopupRef.SetTitle("Peringatan!");
+            alertPopupRef.SetText("Ini adalah pesan error yang ingin ditampilkan.");
+
+            // 2. Tampilkan popup-nya. 
+            // Jika di class 'Popup' ada fungsi Open(), gunakan itu:
+            // alertPopupRef.Open(); 
+            
+            // Jika tidak ada fungsi khusus, aktifkan GameObject-nya secara manual:
+            alertPopupRef.gameObject.SetActive(true);
+        }
+    }
+}
+Cara 2: Menggunakan Sistem Manager (Bawaan GameVanilla)
+Karena script ini berasal dari template/asset GameVanilla, biasanya mereka memiliki arsitektur UI Manager atau Popup Manager untuk memunculkan prefab secara dinamis (tanpa harus ditaruh di Scene dari awal). Kalau sistemnya seperti ini, Abang harus memanggil managernya terlebih dahulu.
+
+Contoh pemanggilannya (nama fungsi pada Manager bisa sedikit berbeda tergantung versi asset yang Abang pakai):
+
+C#
+using UnityEngine;
+using GameVanilla.Game.Popups;
+
+public class ScriptLain : MonoBehaviour
+{
+    public void TampilkanPeringatan()
+    {
+        // Asumsi: Ada sistem UI yang me-load prefab popup.
+        // Misalnya menggunakan fungsi bawaan manager untuk membuka popup.
+        // GameObject popupObj = PopupManager.OpenPopup("AlertPopup");
+        
+        // Asumsikan kita punya referensi GameObject yang baru dibuat/dibuka:
+        AlertPopup alert = GetComponent<AlertPopup>(); // Sesuaikan dengan cara manager me-return objek
+
+        if (alert != null)
+        {
+            alert.SetTitle("Koneksi Gagal");
+            alert.SetText("Mohon periksa koneksi internet kembali.");
+        }
+    }
+}
+Ringkasan Langkah:
+
+Pastikan script lain menggunakan using GameVanilla.Game.Popups; di bagian paling atas.
+
+Dapatkan komponen AlertPopup (bisa lewat Inspector, GetComponent, atau Manager).
+
+Panggil SetTitle("Teks Judul") dan SetText("Teks Isi").
+
+Pastikan objek tersebut diaktifkan di layar (tombol Close dan OK sudah otomatis diatur untuk menutup popup berkat fungsi Close() di kode yang Abang kirimkan).
+
+coba panggil disini bisa saat poin tidak cukup
+
+Halo, Abang! Tentu bisa. Karena IapRow ini biasanya berupa Prefab yang diduplikasi untuk setiap item di toko, cara paling aman dan umum digunakan adalah dengan menjadikan AlertPopup sebagai prefab juga, lalu kita "munculkan" (Instantiate) lewat kode saat poinnya tidak cukup.
+
+Berikut adalah langkah-langkah dan modifikasi kode yang perlu Abang terapkan di script IapRow.cs:
+
+1. Tambahkan Referensi Prefab di Atas
+Di bagian atas class IapRow, tepatnya di kumpulan deklarasi variabel [SerializeField], tambahkan satu variabel baru untuk menyimpan prefab dari AlertPopup.
+
+C#
+        [SerializeField]
+        private List<Sprite> coinIcons;
+
+        // --- TAMBAHKAN BARIS INI ---
+        [Header("Popups")]
+        [SerializeField]
+        private AlertPopup alertPopupPrefab;
+        // ---------------------------
+
+        private IapItem cachedItem;
+2. Update Fungsi OnPurchaseButtonPressed
+Sekarang, mari kita panggil popup tersebut di bagian "Poin Tidak Cukup" (dan saya tambahkan juga di bagian "Belum Login" agar penanganannya lengkap). Ganti keseluruhan fungsi OnPurchaseButtonPressed Abang dengan kode di bawah ini:
+
+C#
+        /// <summary>
+        /// Called when the purchase button is pressed.
+        /// </summary>
+        public async void OnPurchaseButtonPressed()
+        {
+            GetComponent<PlaySound>().Play("Button");
+
+            // 1. Cek apakah user sedang login
+            FirebaseUser user = FirebaseAuth.DefaultInstance.CurrentUser;
+            if (user == null)
+            {
+                Debug.LogWarning("❌ Pembelian gagal: Player belum login!");
+                
+                // Tampilkan popup belum login
+                if (alertPopupPrefab != null)
+                {
+                    AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                    popup.SetTitle("Belum Login");
+                    popup.SetText("Harap login terlebih dahulu untuk melakukan pembelian.");
+                }
+                return;
+            }
+
+            FirebaseFirestore db = FirebaseFirestore.DefaultInstance;
+            DocumentReference docRef = db.Collection("users").Document(user.UserId);
+
+            try
+            {
+                // 2. Ambil data user dari Firestore untuk mengecek poin terbaru
+                DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+                if (snapshot.Exists)
+                {
+                    int currentPoints = 0;
+                    Dictionary<string, object> userData = snapshot.ToDictionary();
+
+                    // Ambil pointsChallenge
+                    if (userData.ContainsKey("pointsChallenge"))
+                    {
+                        currentPoints = Convert.ToInt32(userData["pointsChallenge"]);
+                    }
+
+                    // 3. Cek apakah poin mencukupi
+                    if (currentPoints >= cachedItem.priceInPoints)
+                    {
+                        // 4. Hitung sisa poin
+                        int remainingPoints = currentPoints - cachedItem.priceInPoints;
+
+                        // 5. Update data pointsChallenge di Firestore
+                        await docRef.UpdateAsync("pointsChallenge", remainingPoints);
+
+                        // 6. Berikan koinnya di dalam game
+                        PuzzleMatchManager.instance.coinsSystem.BuyCoins(cachedItem.numCoins);
+
+                        Debug.Log($"✅ Pembelian koin sukses! Poin terpotong {cachedItem.priceInPoints}. Sisa poin di database: {remainingPoints}");
+
+                        // =========================================================
+                        // 7. LANGSUNG UPDATE UI POIN DI PROFIL
+                        // =========================================================
+                        if (FirebaseAuthPuzzle.Instance != null)
+                        {
+                            FirebaseAuthPuzzle.Instance.LoadUserProfile(user.UserId);
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("❌ Pembelian gagal: Poin 'pointsChallenge' tidak mencukupi!");
+                        
+                        // --- MEMANGGIL POPUP POIN TIDAK CUKUP ---
+                        if (alertPopupPrefab != null)
+                        {
+                            // Membuat (instantiate) popup baru dan menaruhnya di dalam Canvas yang sama
+                            AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                            
+                            // Mengatur judul dan isi pesan
+                            popup.SetTitle("Poin Tidak Cukup!");
+                            popup.SetText("Maaf, poin kamu tidak cukup untuk menukar item ini.");
+                        }
+                        else
+                        {
+                            Debug.LogError("Prefab AlertPopup belum dimasukkan ke dalam Inspector IapRow!");
+                        }
+                        // ----------------------------------------
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ Terjadi kesalahan saat memproses pembelian dengan poin: {e.Message}");
+            }
+        }
+3. Hubungkan di Unity Inspector (Langkah Penting)
+Agar kodenya tidak error null, pastikan Abang melakukan ini di Unity Editor:
+
+Buka Prefab dari IapRow (tempat script ini menempel).
+
+Lihat ke bagian komponen script IapRow di Inspector.
+
+Sekarang akan muncul slot baru bernama Alert Popup Prefab.
+
+Cari Prefab AlertPopup milik Abang di jendela Project (di folder prefabs/UI), lalu Drag & Drop prefab tersebut ke dalam slot tadi.
+
+Simpan (Save) prefab IapRow tersebut.
+
+Cara kerjanya: Fungsi Instantiate akan otomatis menduplikasi prefab popup tersebut, menjadikannya aktif, dan kode GetComponentInParent<Canvas>().transform memastikan letak popup tersebut masuk dengan rapi ke dalam urutan UI Canvas yang sedang terbuka di Scene, sehingga ukurannya tidak jadi berantakan.
+
+full codenya
+
+Halo, Abang! Ini dia full code untuk file IapRow.cs yang sudah digabungkan dengan pemanggilan AlertPopup. Abang bisa langsung copy-paste seluruh kode ini untuk menimpa isi file yang lama.
+
+C#
+// Copyright (C) 2017 gamevanilla. All rights reserved.
+// This code can only be used under the standard Unity Asset Store End User License Agreement,
+// a copy of which is available at http://unity3d.com/company/legal/as_terms.
+
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Firebase.Auth;
+using Firebase.Firestore;
+using UnityEngine;
+using UnityEngine.Assertions;
+using UnityEngine.UI;
+using GameVanilla.Core;
+using GameVanilla.Game.Common;
+using GameVanilla.Game.Popups;
+
+namespace GameVanilla.Game.UI
+{
+    /// <summary>
+    /// An in-app purchasable item in the shop popup.
+    /// </summary>
+    public class IapRow : MonoBehaviour
+    {
+        [HideInInspector]
+        public BuyCoinsPopup buyCoinsPopup;
+
+#pragma warning disable 649
+        [SerializeField]
+        private GameObject mostPopular;
+        [SerializeField]
+        private GameObject bestValue;
+        [SerializeField]
+        private GameObject discount;
+        [SerializeField]
+        private Text discountText;
+        [SerializeField]
+        private Text numCoinsText;
+        [SerializeField]
+        private Text priceText;
+        [SerializeField]
+        private Image coinsImage;
+        [SerializeField]
+        private List<Sprite> coinIcons;
+        
+        [Header("Popups")]
+        [SerializeField]
+        private AlertPopup alertPopupPrefab;
+#pragma warning restore 649
+
+        private IapItem cachedItem;
+
+        /// <summary>
+        /// Unity's Awake method.
+        /// </summary>
+        private void Awake()
+        {
+            Assert.IsNotNull(mostPopular);
+            Assert.IsNotNull(bestValue);
+            Assert.IsNotNull(discount);
+            Assert.IsNotNull(discountText);
+            Assert.IsNotNull(numCoinsText);
+            Assert.IsNotNull(priceText);
+            Assert.IsNotNull(coinsImage);
+        }
+
+        /// <summary>
+        /// Fills this widget with the specified IAP item's information.
+        /// </summary>
+        /// <param name="item">The IAP item with which to fill this widget.</param>
+        public void Fill(IapItem item)
+        {
+            cachedItem = item;
+
+            numCoinsText.text = item.numCoins.ToString("n0");
+            if (item.discount > 0)
+            {
+                discountText.text = string.Format("{0}%", item.discount);
+            }
+            else
+            {
+                discount.SetActive(false);
+            }
+
+            if (item.mostPopular)
+            {
+                bestValue.SetActive(false);
+            }
+            else if (item.bestValue)
+            {
+                mostPopular.SetActive(false);
+            }
+            else
+            {
+                mostPopular.SetActive(false);
+                bestValue.SetActive(false);
+            }
+
+            coinsImage.sprite = coinIcons[(int)item.coinIcon];
+            coinsImage.SetNativeSize();
+
+            // Menampilkan harga dalam bentuk Points
+            priceText.text = item.priceInPoints.ToString() + " Points";
+        }
+
+        /// <summary>
+        /// Called when the purchase button is pressed.
+        /// </summary>
+        public async void OnPurchaseButtonPressed()
+        {
+            GetComponent<PlaySound>().Play("Button");
+
+            // 1. Cek apakah user sedang login
+            FirebaseUser user = FirebaseAuth.DefaultInstance.CurrentUser;
+            if (user == null)
+            {
+                Debug.LogWarning("❌ Pembelian gagal: Player belum login!");
+                
+                // Tampilkan popup belum login
+                if (alertPopupPrefab != null)
+                {
+                    AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                    popup.SetTitle("Belum Login");
+                    popup.SetText("Harap login terlebih dahulu untuk melakukan pembelian.");
+                }
+                return;
+            }
+
+            FirebaseFirestore db = FirebaseFirestore.DefaultInstance;
+            DocumentReference docRef = db.Collection("users").Document(user.UserId);
+
+            try
+            {
+                // 2. Ambil data user dari Firestore untuk mengecek poin terbaru
+                DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+                if (snapshot.Exists)
+                {
+                    int currentPoints = 0;
+                    Dictionary<string, object> userData = snapshot.ToDictionary();
+
+                    // Ambil pointsChallenge
+                    if (userData.ContainsKey("pointsChallenge"))
+                    {
+                        currentPoints = Convert.ToInt32(userData["pointsChallenge"]);
+                    }
+
+                    // 3. Cek apakah poin mencukupi
+                    if (currentPoints >= cachedItem.priceInPoints)
+                    {
+                        // 4. Hitung sisa poin
+                        int remainingPoints = currentPoints - cachedItem.priceInPoints;
+
+                        // 5. Update data pointsChallenge di Firestore
+                        await docRef.UpdateAsync("pointsChallenge", remainingPoints);
+
+                        // 6. Berikan koinnya di dalam game
+                        PuzzleMatchManager.instance.coinsSystem.BuyCoins(cachedItem.numCoins);
+
+                        Debug.Log($"✅ Pembelian koin sukses! Poin terpotong {cachedItem.priceInPoints}. Sisa poin di database: {remainingPoints}");
+
+                        // =========================================================
+                        // 7. LANGSUNG UPDATE UI POIN DI PROFIL
+                        // =========================================================
+                        if (FirebaseAuthPuzzle.Instance != null)
+                        {
+                            // Pastikan fungsi ini sudah diubah menjadi public di FirebaseAuthPuzzle.cs!
+                            FirebaseAuthPuzzle.Instance.LoadUserProfile(user.UserId);
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("❌ Pembelian gagal: Poin 'pointsChallenge' tidak mencukupi!");
+                        
+                        // --- MEMANGGIL POPUP POIN TIDAK CUKUP ---
+                        if (alertPopupPrefab != null)
+                        {
+                            // Membuat (instantiate) popup baru dan menaruhnya di dalam Canvas yang sama
+                            AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                            
+                            // Mengatur judul dan isi pesan
+                            popup.SetTitle("Poin Tidak Cukup!");
+                            popup.SetText("Maaf, poin kamu tidak cukup untuk menukar item ini.");
+                        }
+                        else
+                        {
+                            Debug.LogError("Prefab AlertPopup belum dimasukkan ke dalam Inspector IapRow!");
+                        }
+                        // ----------------------------------------
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ Terjadi kesalahan saat memproses pembelian dengan poin: {e.Message}");
+            }
+        }
+    }
+}
+Pengingat Penting: Setelah Abang menyimpan file ini, jangan lupa buka Unity Editor, klik prefab IapRow-nya, lalu seret (drag and drop) prefab AlertPopup dari jendela Project ke dalam slot Alert Popup Prefab di Inspector.
+
+duh, noticenya pake bahasa ingris bang
+
+Ah, siap Abang! Mari kita ganti teks notice-nya ke bahasa Inggris supaya lebih pas dengan feel gamenya.
+
+Ini dia full code yang sudah disesuaikan pesan peringatannya ke dalam bahasa Inggris ("Login Required" dan "Not Enough Points!"). Abang bisa langsung copy-paste seluruh kode di bawah ini:
+
+C#
+// Copyright (C) 2017 gamevanilla. All rights reserved.
+// This code can only be used under the standard Unity Asset Store End User License Agreement,
+// a copy of which is available at http://unity3d.com/company/legal/as_terms.
+
+using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Firebase.Auth;
+using Firebase.Firestore;
+using UnityEngine;
+using UnityEngine.Assertions;
+using UnityEngine.UI;
+using GameVanilla.Core;
+using GameVanilla.Game.Common;
+using GameVanilla.Game.Popups;
+
+namespace GameVanilla.Game.UI
+{
+    /// <summary>
+    /// An in-app purchasable item in the shop popup.
+    /// </summary>
+    public class IapRow : MonoBehaviour
+    {
+        [HideInInspector]
+        public BuyCoinsPopup buyCoinsPopup;
+
+#pragma warning disable 649
+        [SerializeField]
+        private GameObject mostPopular;
+        [SerializeField]
+        private GameObject bestValue;
+        [SerializeField]
+        private GameObject discount;
+        [SerializeField]
+        private Text discountText;
+        [SerializeField]
+        private Text numCoinsText;
+        [SerializeField]
+        private Text priceText;
+        [SerializeField]
+        private Image coinsImage;
+        [SerializeField]
+        private List<Sprite> coinIcons;
+        
+        [Header("Popups")]
+        [SerializeField]
+        private AlertPopup alertPopupPrefab;
+#pragma warning restore 649
+
+        private IapItem cachedItem;
+
+        /// <summary>
+        /// Unity's Awake method.
+        /// </summary>
+        private void Awake()
+        {
+            Assert.IsNotNull(mostPopular);
+            Assert.IsNotNull(bestValue);
+            Assert.IsNotNull(discount);
+            Assert.IsNotNull(discountText);
+            Assert.IsNotNull(numCoinsText);
+            Assert.IsNotNull(priceText);
+            Assert.IsNotNull(coinsImage);
+        }
+
+        /// <summary>
+        /// Fills this widget with the specified IAP item's information.
+        /// </summary>
+        /// <param name="item">The IAP item with which to fill this widget.</param>
+        public void Fill(IapItem item)
+        {
+            cachedItem = item;
+
+            numCoinsText.text = item.numCoins.ToString("n0");
+            if (item.discount > 0)
+            {
+                discountText.text = string.Format("{0}%", item.discount);
+            }
+            else
+            {
+                discount.SetActive(false);
+            }
+
+            if (item.mostPopular)
+            {
+                bestValue.SetActive(false);
+            }
+            else if (item.bestValue)
+            {
+                mostPopular.SetActive(false);
+            }
+            else
+            {
+                mostPopular.SetActive(false);
+                bestValue.SetActive(false);
+            }
+
+            coinsImage.sprite = coinIcons[(int)item.coinIcon];
+            coinsImage.SetNativeSize();
+
+            // Menampilkan harga dalam bentuk Points
+            priceText.text = item.priceInPoints.ToString() + " Points";
+        }
+
+        /// <summary>
+        /// Called when the purchase button is pressed.
+        /// </summary>
+        public async void OnPurchaseButtonPressed()
+        {
+            GetComponent<PlaySound>().Play("Button");
+
+            // 1. Cek apakah user sedang login
+            FirebaseUser user = FirebaseAuth.DefaultInstance.CurrentUser;
+            if (user == null)
+            {
+                Debug.LogWarning("❌ Pembelian gagal: Player belum login!");
+                
+                // Tampilkan popup belum login
+                if (alertPopupPrefab != null)
+                {
+                    AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                    popup.SetTitle("Login Required");
+                    popup.SetText("Please log in first to make a purchase.");
+                }
+                return;
+            }
+
+            FirebaseFirestore db = FirebaseFirestore.DefaultInstance;
+            DocumentReference docRef = db.Collection("users").Document(user.UserId);
+
+            try
+            {
+                // 2. Ambil data user dari Firestore untuk mengecek poin terbaru
+                DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+                if (snapshot.Exists)
+                {
+                    int currentPoints = 0;
+                    Dictionary<string, object> userData = snapshot.ToDictionary();
+
+                    // Ambil pointsChallenge
+                    if (userData.ContainsKey("pointsChallenge"))
+                    {
+                        currentPoints = Convert.ToInt32(userData["pointsChallenge"]);
+                    }
+
+                    // 3. Cek apakah poin mencukupi
+                    if (currentPoints >= cachedItem.priceInPoints)
+                    {
+                        // 4. Hitung sisa poin
+                        int remainingPoints = currentPoints - cachedItem.priceInPoints;
+
+                        // 5. Update data pointsChallenge di Firestore
+                        await docRef.UpdateAsync("pointsChallenge", remainingPoints);
+
+                        // 6. Berikan koinnya di dalam game
+                        PuzzleMatchManager.instance.coinsSystem.BuyCoins(cachedItem.numCoins);
+
+                        Debug.Log($"✅ Pembelian koin sukses! Poin terpotong {cachedItem.priceInPoints}. Sisa poin di database: {remainingPoints}");
+
+                        // =========================================================
+                        // 7. LANGSUNG UPDATE UI POIN DI PROFIL
+                        // =========================================================
+                        if (FirebaseAuthPuzzle.Instance != null)
+                        {
+                            // Pastikan fungsi ini sudah diubah menjadi public di FirebaseAuthPuzzle.cs!
+                            FirebaseAuthPuzzle.Instance.LoadUserProfile(user.UserId);
+                        }
+                    }
+                    else
+                    {
+                        Debug.LogWarning("❌ Pembelian gagal: Poin 'pointsChallenge' tidak mencukupi!");
+                        
+                        // --- MEMANGGIL POPUP POIN TIDAK CUKUP ---
+                        if (alertPopupPrefab != null)
+                        {
+                            // Membuat (instantiate) popup baru dan menaruhnya di dalam Canvas yang sama
+                            AlertPopup popup = Instantiate(alertPopupPrefab, GetComponentInParent<Canvas>().transform, false);
+                            
+                            // Mengatur judul dan isi pesan
+                            popup.SetTitle("Not Enough Points!");
+                            popup.SetText("Sorry, you don't have enough points for this item.");
+                        }
+                        else
+                        {
+                            Debug.LogError("Prefab AlertPopup belum dimasukkan ke dalam Inspector IapRow!");
+                        }
+                        // ----------------------------------------
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"❌ Terjadi kesalahan saat memproses pembelian dengan poin: {e.Message}");
+            }
+        }
+    }
+}
+saat logout, itukan PlayerPrefsCustom.DeleteAll(); yah, coba ganti jangan DeleteAll tapi ganti dengan ini
+
+{
+
+    "entries": [
+
+        {
+
+            "key": "num_lives",
+
+            "type": 0,
+
+            "intValue": 5,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "next_life_time",
+
+            "type": 2,
+
+            "intValue": 0,
+
+            "floatValue": 0.0,
+
+            "stringValue": "-8584225267128125068"
+
+        },
+
+        {
+
+            "key": "num_coins",
+
+            "type": 0,
+
+            "intValue": 600,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "next_level",
+
+            "type": 0,
+
+            "intValue": 12,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_1",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_1",
+
+            "type": 0,
+
+            "intValue": 1840,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_2",
+
+            "type": 0,
+
+            "intValue": 2,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_2",
+
+            "type": 0,
+
+            "intValue": 800,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_3",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_3",
+
+            "type": 0,
+
+            "intValue": 1810,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_4",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_4",
+
+            "type": 0,
+
+            "intValue": 2730,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_5",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_5",
+
+            "type": 0,
+
+            "intValue": 1180,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_6",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_6",
+
+            "type": 0,
+
+            "intValue": 2170,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_7",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_7",
+
+            "type": 0,
+
+            "intValue": 2030,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_8",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_8",
+
+            "type": 0,
+
+            "intValue": 1700,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_9",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_9",
+
+            "type": 0,
+
+            "intValue": 3960,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_10",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_10",
+
+            "type": 0,
+
+            "intValue": 2250,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_stars_11",
+
+            "type": 0,
+
+            "intValue": 3,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "level_score_11",
+
+            "type": 0,
+
+            "intValue": 1720,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "sound_enabled",
+
+            "type": 0,
+
+            "intValue": 1,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "music_enabled",
+
+            "type": 0,
+
+            "intValue": 1,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        },
+
+        {
+
+            "key": "notifications_enabled",
+
+            "type": 0,
+
+            "intValue": 1,
+
+            "floatValue": 0.0,
+
+            "stringValue": ""
+
+        }
+
+    ]
+
+}
+
+Halo Abang! Paham maksudnya. Jadi ketika pemain logout, kita tidak ingin datanya bersih/kosong melompong, melainkan me-reset progresnya ke data bawaan (Guest Data) di mana pemain langsung berada di level 12 dengan koin dan skor tertentu seperti di JSON yang Abang berikan.
+
+Untuk melakukan ini, kita harus menambahkan fungsi baru di PlayerPrefsCustom.cs untuk memuat JSON tersebut, lalu memanggilnya di fungsi Logout() yang ada di FirebaseAuthPuzzle.cs.
+
+Berikut adalah dua langkah yang perlu Abang terapkan:
+
+Langkah 1: Tambahkan Fungsi Reset di PlayerPrefsCustom.cs
+Buka file PlayerPrefsCustom.cs, scroll ke paling bawah, dan tambahkan fungsi ResetToGuestData() ini tepat di atas tutup kurung kurawal terakhir } dari class tersebut:
+
+C#
+    // ==========================================
+    // TAMBAHKAN FUNGSI INI DI DALAM PlayerPrefsCustom
+    // ==========================================
+    public static void ResetToGuestData()
+    {
+        if (_instance != null)
+        {
+            // Memasukkan JSON yang Abang minta ke dalam string format C#
+            string defaultJson = @"{
+                ""entries"": [
+                    { ""key"": ""num_lives"", ""type"": 0, ""intValue"": 5, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_life_time"", ""type"": 2, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": ""-8584225267128125068"" },
+                    { ""key"": ""num_coins"", ""type"": 0, ""intValue"": 600, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_level"", ""type"": 0, ""intValue"": 12, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_1"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_1"", ""type"": 0, ""intValue"": 1840, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_2"", ""type"": 0, ""intValue"": 2, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_2"", ""type"": 0, ""intValue"": 800, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_3"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_3"", ""type"": 0, ""intValue"": 1810, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_4"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_4"", ""type"": 0, ""intValue"": 2730, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_5"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_5"", ""type"": 0, ""intValue"": 1180, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_6"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_6"", ""type"": 0, ""intValue"": 2170, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_7"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_7"", ""type"": 0, ""intValue"": 2030, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_8"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_8"", ""type"": 0, ""intValue"": 1700, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_9"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_9"", ""type"": 0, ""intValue"": 3960, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_10"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_10"", ""type"": 0, ""intValue"": 2250, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_11"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_11"", ""type"": 0, ""intValue"": 1720, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""sound_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""music_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""notifications_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" }
+                ]
+            }";
+
+            isWiped = false; // Pastikan status tidak dalam keadaan "wiped" agar bisa tersimpan
+
+            // 1. Timpa data saat ini dengan JSON default
+            _instance.saveData = JsonUtility.FromJson<PrefSaveData>(defaultJson);
+
+            // 2. Kosongkan cache lama lalu masukan data yang baru
+            _instance.dataCache.Clear();
+            foreach (var entry in _instance.saveData.entries)
+            {
+                _instance.dataCache[entry.key] = entry;
+            }
+
+            // 3. Update stats di Inspector Unity (Level, Stars, dll)
+            _instance.UpdateInspectorStats();
+
+            // 4. Langsung simpan secara permanen ke file json lokal
+            _instance.SaveInternal();
+            
+            Debug.Log("🔄 [PlayerPrefsCustom] Data dikembalikan ke Guest Data Default (Level 12).");
+        }
+    }
+Langkah 2: Ubah Fungsi Logout di FirebaseAuthPuzzle.cs
+Selanjutnya, buka file FirebaseAuthPuzzle.cs, cari fungsi Logout(), lalu ganti pemanggilan PlayerPrefsCustom.DeleteAll() menjadi PlayerPrefsCustom.ResetToGuestData().
+
+Berikut adalah full code untuk fungsi Logout() yang sudah diubah:
+
+C#
+    // =========================================================================
+    // LOGOUT
+    // =========================================================================
+    public void Logout()
+    {
+        if (!isFirebaseReady) return;
+
+        auth.SignOut();
+        Debug.Log("[Auth] User berhasil Logout.");
+
+        if (PlayerPrefsCustom.Instance != null)
+        {
+            // === BAGIAN INI YANG DIGANTI ===
+            PlayerPrefsCustom.ResetToGuestData();
+            Debug.Log("🧹 [Sistem] Data lokal direset ke Guest Data karena pergantian akun.");
+            // ===============================
+        }
+
+        //SceneManager.LoadSceneAsync("HomeScene");
+        currentIdToken = "";
+        if (usernameText != null) usernameText.text = "";
+        if (emailText != null) emailText.text = "";
+        if (pointsText != null) pointsText.text = "0";
+        if (iconAvatar != null) iconAvatar.sprite = null;
+
+        // REAL-TIME: Langsung hilangkan dan kosongkan rank saat menekan logout
+        if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(false);
+
+        icon_Avatar = defaultAvatarSprite;
+        SwitchToLoginPanel();
+    }
+Penjelasan Cara Kerjanya:
+Saat pemain memencet tombol Logout, Unity tidak lagi menghapus keseluruhan file save lokalnya. Unity akan menggunakan JsonUtility.FromJson untuk mem-parsing data level 12 yang Abang siapkan, memasukkannya ke memori, dan langsung menimpanya (SaveInternal) ke file lokal pemain tersebut.
+
+Kalau ada yang error saat di-paste, kabari saya ya, Bang!
+
+full code
+
+Siap, Abang! Biar gampang dan tidak perlu repot-repot copy-paste sepotong-sepotong, ini full code untuk kedua file tersebut. Abang tinggal timpa (replace) semua isi file lama dengan kode di bawah ini.
+
+1. PlayerPrefsCustom.cs
+C#
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using Firebase.Auth;
+using UnityEngine.UI; // Wajib untuk cek status login
+
+public enum PrefType { Int, Float, String }
+
+[System.Serializable]
+public class PrefEntry
+{
+    public string key;
+    public PrefType type;
+    public int intValue;
+    public float floatValue;
+    public string stringValue;
+}
+
+[System.Serializable]
+public class PrefSaveData
+{
+    public List<PrefEntry> entries = new List<PrefEntry>();
+}
+
+public class PlayerPrefsCustom : MonoBehaviour
+{
+    [Header("Live Data (Bisa dilihat di Inspector)")]
+    public PrefSaveData saveData = new PrefSaveData();
+
+    [Header("Player Progress Stats")]
+    public Text PlayerXPText;
+    public Text PlayerTitleText;
+    public string PlayerTitle;
+    public int Level;
+    public int TotalStars;
+    public int TotalScore;
+
+    [Header("Preview JSON")]
+    [TextArea(10, 20)]
+    public string jsonPreview;
+
+    public static bool isWiped = false;
+
+    private Dictionary<string, PrefEntry> dataCache = new Dictionary<string, PrefEntry>();
+    private string saveFilePath;
+    private bool hasInitialized = false;
+
+    private static PlayerPrefsCustom _instance;
+    public static PlayerPrefsCustom Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindObjectOfType<PlayerPrefsCustom>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("PlayerPrefsCustom_Manager");
+                    _instance = go.AddComponent<PlayerPrefsCustom>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            _instance.Init();
+            return _instance;
+        }
+    }
+
+    void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (_instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Init();
+    }
+
+    private void Init()
+    {
+        if (hasInitialized) return;
+        hasInitialized = true;
+
+        saveFilePath = Application.persistentDataPath + "/PlayerPrefsCustom.json";
+
+        // 1. Load data lokal agar game bisa langsung jalan tanpa nunggu internet
+        LoadInternal();
+
+        // 2. Cek Cloud untuk memastikan data lokal adalah yang terbaru
+        AutoLoadFromCloud();
+    }
+
+    private async void AutoLoadFromCloud()
+    {
+        // Beri jeda sedikit agar Firebase selesai inisialisasi di background
+        await System.Threading.Tasks.Task.Delay(500);
+
+        try
+        {
+            if (FirebaseAuth.DefaultInstance != null && FirebaseAuth.DefaultInstance.CurrentUser != null)
+            {
+                if (FirestoreManagerPuzzle.Instance != null)
+                {
+                    Debug.Log("☁️ [PlayerPrefsCustom] Sinkronisasi awal: Menarik data terbaru dari Firestore...");
+                    await FirestoreManagerPuzzle.Instance.LoadPuzzleMatchData();
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[PlayerPrefsCustom] Gagal Auto-Load dari Cloud: " + e.Message);
+        }
+    }
+
+    private void LoadInternal()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            string json = File.ReadAllText(saveFilePath);
+            saveData = JsonUtility.FromJson<PrefSaveData>(json);
+            jsonPreview = json;
+
+            dataCache.Clear();
+            foreach (var entry in saveData.entries)
+            {
+                dataCache[entry.key] = entry;
+            }
+
+            UpdateInspectorStats(); // Update stats di inspector setelah data diload
+        }
+    }
+
+    private void SaveInternal()
+    {
+        if (isWiped && dataCache.Count == 0) return;
+
+        saveData.entries = dataCache.Values.ToList();
+        string json = JsonUtility.ToJson(saveData, true);
+        jsonPreview = json;
+        File.WriteAllText(saveFilePath, json);
+        isWiped = false;
+
+        UpdateInspectorStats(); // Update stats di inspector setelah data disave
+    }
+
+    private void UpdateInspectorStats()
+    {
+        Level = GetInt("next_level", 0);
+
+        int tempStars = 0;
+        int tempScore = 0;
+
+        foreach (var entry in saveData.entries)
+        {
+            if (entry.type == PrefType.Int)
+            {
+                if (entry.key.StartsWith("level_stars_"))
+                {
+                    tempStars += entry.intValue;
+                }
+                else if (entry.key.StartsWith("level_score_"))
+                {
+                    tempScore += entry.intValue;
+                }
+            }
+        }
+
+        TotalStars = tempStars;
+        TotalScore = tempScore;
+        if (PlayerXPText != null) PlayerXPText.text = "Experience : " + TotalScore.ToString();
+
+        // Panggil penentuan title setelah total bintang & skor didapat
+        PlayerTitle = GetPlayerTitle();
+        if (PlayerTitleText != null) PlayerTitleText.text = "Title : " + PlayerTitle;
+    }
+
+    private PrefEntry GetOrCreateEntry(string key, PrefType type)
+    {
+        if (dataCache.TryGetValue(key, out PrefEntry entry))
+        {
+            entry.type = type;
+            return entry;
+        }
+        PrefEntry newEntry = new PrefEntry { key = key, type = type };
+        dataCache[key] = newEntry;
+        return newEntry;
+    }
+
+    public static void SetInt(string key, int value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Int); entry.intValue = value; Instance.SaveInternal(); }
+    public static int GetInt(string key, int defaultValue = 0) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Int) ? entry.intValue : defaultValue; }
+
+    public static void SetFloat(string key, float value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Float); entry.floatValue = value; Instance.SaveInternal(); }
+    public static float GetFloat(string key, float defaultValue = 0f) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Float) ? entry.floatValue : defaultValue; }
+
+    public static void SetString(string key, string value) { var entry = Instance.GetOrCreateEntry(key, PrefType.String); entry.stringValue = value; Instance.SaveInternal(); }
+    public static string GetString(string key, string defaultValue = "") { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.String) ? entry.stringValue : defaultValue; }
+
+    public static bool HasKey(string key) { return Instance.dataCache.ContainsKey(key); }
+    public static void DeleteKey(string key) { if (Instance.dataCache.ContainsKey(key)) { Instance.dataCache.Remove(key); Instance.SaveInternal(); } }
+
+    public static void DeleteAll()
+    {
+        if (_instance != null)
+        {
+            _instance.dataCache.Clear();
+            _instance.saveData.entries.Clear();
+            _instance.jsonPreview = "Data Kosong.";
+
+            // Reset stats di Inspector
+            _instance.Level = 0;
+            _instance.TotalStars = 0;
+            _instance.TotalScore = 0;
+            _instance.PlayerTitle = "Novice";
+        }
+        isWiped = true;
+        if (File.Exists(Application.persistentDataPath + "/PlayerPrefsCustom.json")) File.Delete(Application.persistentDataPath + "/PlayerPrefsCustom.json");
+    }
+
+    public static void Save() { Instance.SaveInternal(); }
+
+    void OnApplicationQuit() { if (!isWiped) SaveInternal(); }
+
+    public string GetPlayerTitle()
+    {
+        // Langsung menggunakan variabel TotalStars karena sudah di-set di UpdateInspectorStats()
+        if (TotalStars >= 300) return "Legend";
+        if (TotalStars >= 290) return "Grandmaster";
+        if (TotalStars >= 260) return "Master";
+        if (TotalStars >= 230) return "Expert";
+        if (TotalStars >= 190) return "Veteran";
+        if (TotalStars >= 150) return "Professional";
+        if (TotalStars >= 120) return "Challenger";
+        if (TotalStars >= 90) return "Adventurer";
+        if (TotalStars >= 60) return "Wanderer";
+        if (TotalStars >= 30) return "Apprentice";
+
+        return "Novice";
+    }
+
+    // ==========================================
+    // FUNGSI UNTUK MERESET KE DATA DEFAULT (GUEST)
+    // ==========================================
+    public static void ResetToGuestData()
+    {
+        if (_instance != null)
+        {
+            string defaultJson = @"{
+                ""entries"": [
+                    { ""key"": ""num_lives"", ""type"": 0, ""intValue"": 5, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_life_time"", ""type"": 2, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": ""-8584225267128125068"" },
+                    { ""key"": ""num_coins"", ""type"": 0, ""intValue"": 600, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_level"", ""type"": 0, ""intValue"": 12, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_1"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_1"", ""type"": 0, ""intValue"": 1840, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_2"", ""type"": 0, ""intValue"": 2, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_2"", ""type"": 0, ""intValue"": 800, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_3"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_3"", ""type"": 0, ""intValue"": 1810, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_4"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_4"", ""type"": 0, ""intValue"": 2730, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_5"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_5"", ""type"": 0, ""intValue"": 1180, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_6"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_6"", ""type"": 0, ""intValue"": 2170, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_7"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_7"", ""type"": 0, ""intValue"": 2030, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_8"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_8"", ""type"": 0, ""intValue"": 1700, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_9"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_9"", ""type"": 0, ""intValue"": 3960, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_10"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_10"", ""type"": 0, ""intValue"": 2250, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_stars_11"", ""type"": 0, ""intValue"": 3, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""level_score_11"", ""type"": 0, ""intValue"": 1720, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""sound_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""music_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""notifications_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" }
+                ]
+            }";
+
+            isWiped = false; 
+
+            _instance.saveData = JsonUtility.FromJson<PrefSaveData>(defaultJson);
+
+            _instance.dataCache.Clear();
+            foreach (var entry in _instance.saveData.entries)
+            {
+                _instance.dataCache[entry.key] = entry;
+            }
+
+            _instance.UpdateInspectorStats();
+            _instance.SaveInternal();
+            
+            Debug.Log("🔄 [PlayerPrefsCustom] Data dikembalikan ke Guest Data Default (Level 12).");
+        }
+    }
+}
+2. FirebaseAuthPuzzle.cs
+C#
+using UnityEngine;
+using UnityEngine.UI;
+using Firebase;
+using Firebase.Auth;
+using Firebase.Firestore;
+using System.Threading.Tasks;
+using System;
+using System.Text.RegularExpressions;
+using System.Collections;
+using GameVanilla.Core;
+using UnityEngine.Networking;
+using DG.Tweening;
+using UnityEngine.SceneManagement;
+
+public class FirebaseAuthPuzzle : MonoBehaviour
+{
+    // ==========================================
+    // SINGLETON INSTANCE
+    // ==========================================
+    public static FirebaseAuthPuzzle Instance { get; private set; }
+
+    [Header("Loading UI")]
+    public CanvasGroup loadingProcessLogin;
+
+    [Header("Firebase Status")]
+    [Tooltip("Indikator apakah Firebase sudah siap digunakan.")]
+    public bool isFirebaseReady { get; private set; } = false;
+
+    [Header("Debug / Testing")]
+    [Tooltip("Token ini otomatis terisi saat berhasil login. Bisa dicopas untuk test Deep Link.")]
+    [TextArea(3, 6)]
+    public string currentIdToken;
+
+    [Header("UI Profile References")]
+    public AnimatedButton profileButton;
+    public GameObject profilePanel;
+    public GameObject mainPanel;
+    [SerializeField] private Image iconAvatar;
+    public Sprite icon_Avatar;
+    public Sprite defaultAvatarSprite;
+    [SerializeField] private Text usernameText;
+    [SerializeField] private Button logoutButton;
+    [SerializeField] private Text emailText;
+    [SerializeField] private Text pointsText;
+
+    [Header("UI References - Register")]
+    public GameObject registerPanel;
+    public InputField regUsernameInput;
+    public InputField regEmailInput;
+    public InputField regPasswordInput;
+    public InputField regConfirmPasswordInput;
+    public Button registerButton;
+
+    [Header("UI References - Login")]
+    public GameObject loginPanel;
+    public InputField loginEmailInput;
+    public InputField loginPasswordInput;
+    public Button loginButton;
+    public Button openForgotPasswordButton;
+
+    [Header("UI References - Forgot Password")]
+    public GameObject forgotPasswordPanel;
+    public InputField resetEmailInput;
+    public Button resetPasswordButton;
+    public Button backToLoginFromForgotButton;
+
+    [Header("UI Feedback")]
+    public Text feedbackText;
+
+    private FirebaseAuth auth;
+    private FirebaseFirestore db;
+    private Coroutine feedbackCoroutine;
+
+
+    // ==========================================
+    // AWAKE METHOD UNTUK SINGLETON
+    // ==========================================
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    // ==========================================
+    // MENDENGARKAN EVENT DARI DEEPLINK HANDLER
+    // ==========================================
+    private void OnEnable()
+    {
+        if (DeepLinkHandler.Instance != null)
+        {
+            DeepLinkHandler.Instance.OnSsoLoginSuccess += HandleSsoLoginSuccess;
+            DeepLinkHandler.Instance.OnSsoLoginError += HandleSsoLoginError;
+        }
+    }
+
+    private void OnDisable()
+    {
+        if (DeepLinkHandler.Instance != null)
+        {
+            DeepLinkHandler.Instance.OnSsoLoginSuccess -= HandleSsoLoginSuccess;
+            DeepLinkHandler.Instance.OnSsoLoginError -= HandleSsoLoginError;
+        }
+    }
+
+    async void Start()
+    {
+        HideLoading(true);
+
+        if (registerButton != null) registerButton.onClick.AddListener(RegisterUser);
+        if (loginButton != null) loginButton.onClick.AddListener(LoginUser);
+        if (logoutButton != null) logoutButton.onClick.AddListener(Logout);
+        if (resetPasswordButton != null) resetPasswordButton.onClick.AddListener(ForgotPassword);
+        if (openForgotPasswordButton != null) openForgotPasswordButton.onClick.AddListener(SwitchToForgotPasswordPanel);
+        if (backToLoginFromForgotButton != null) backToLoginFromForgotButton.onClick.AddListener(SwitchToLoginPanel);
+
+        await InitializeFirebaseAsync();
+    }
+
+    private void Update()
+    {
+        if (DeepLinkHandler.Instance != null && DeepLinkHandler.Instance.IsProcessingAuthToken)
+        {
+            ShowLoading();
+        }
+    }
+
+    // ==========================================
+    // FUNGSI KONTROL LOADING UI (DENGAN DOTWEEN)
+    // ==========================================
+    private void ShowLoading()
+    {
+        if (loadingProcessLogin != null && !loadingProcessLogin.gameObject.activeSelf)
+        {
+            loadingProcessLogin.gameObject.SetActive(true);
+            loadingProcessLogin.alpha = 0f;
+            loadingProcessLogin.blocksRaycasts = true;
+
+            loadingProcessLogin.DOFade(1f, 0.3f);
+        }
+    }
+
+    private void HideLoading(bool instant = false)
+    {
+        if (loadingProcessLogin != null && loadingProcessLogin.gameObject.activeSelf)
+        {
+            loadingProcessLogin.blocksRaycasts = false;
+            loadingProcessLogin.DOKill();
+
+            if (instant)
+            {
+                loadingProcessLogin.alpha = 0f;
+                loadingProcessLogin.gameObject.SetActive(false);
+            }
+            else
+            {
+                loadingProcessLogin.DOFade(0f, 0.3f).OnComplete(() =>
+                {
+                    loadingProcessLogin.gameObject.SetActive(false);
+                });
+            }
+        }
+    }
+
+    // ==========================================
+    // INISIALISASI FIREBASE YANG AMAN
+    // ==========================================
+    private async Task InitializeFirebaseAsync()
+    {
+        var dependencyStatus = await FirebaseApp.CheckAndFixDependenciesAsync();
+
+        if (dependencyStatus == DependencyStatus.Available)
+        {
+            auth = FirebaseAuth.DefaultInstance;
+            db = FirebaseFirestore.DefaultInstance;
+
+            isFirebaseReady = true;
+            Debug.Log("[Firebase] Berhasil diinisialisasi dan siap digunakan.");
+
+            CheckCurrentUser();
+        }
+        else
+        {
+            Debug.LogError($"[Firebase] Gagal memuat dependency Firebase: {dependencyStatus}");
+            ShowFeedback("Error: Layanan Google Play tidak tersedia.", Color.red);
+        }
+    }
+
+    private void CheckCurrentUser()
+    {
+        if (auth.CurrentUser != null)
+        {
+            LoadUserProfile(auth.CurrentUser.UserId);
+            ShowProfilePanel();
+
+            // REAL-TIME: Aktifkan panel rank saat login terdeteksi sejak awal game
+            if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(true);
+        }
+        else
+        {
+            if (mainPanel != null) mainPanel.SetActive(true);
+            SwitchToLoginPanel();
+
+            // REAL-TIME: Sembunyikan panel rank jika statusnya Guest
+            if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(false);
+        }
+    }
+
+    // ==========================================
+    // LOGIC OTOMATIS SAAT SSO SUKSES / GAGAL
+    // ==========================================
+    private async void HandleSsoLoginSuccess()
+    {
+        Debug.Log("[SSO] Menangkap signal sukses, mengunduh data cloud...");
+
+        // Memastikan data disinkronisasi dari Firestore agar level tidak ter-reset
+        if (FirestoreManagerPuzzle.Instance != null)
+        {
+            await FirestoreManagerPuzzle.Instance.LoadPuzzleMatchData();
+        }
+
+        HideLoading();
+
+        // REAL-TIME: Aktifkan panel rank segera setelah login SSO berhasil tuntas
+        if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(true);
+
+        if (auth.CurrentUser != null)
+        {
+            ShowProfilePanel();
+            LoadUserProfile(auth.CurrentUser.UserId);
+            ShowFeedback("SSO Login Berhasil! Selamat datang.", Color.green);
+        }
+    }
+
+    private void HandleSsoLoginError(string errorMessage)
+    {
+        HideLoading();
+        SwitchToLoginPanel();
+        ShowFeedback("SSO Gagal: " + errorMessage, Color.red);
+
+        // REAL-TIME: Sembunyikan panel rank jika login SSO gagal
+        if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(false);
+    }
+
+    // =========================================================================
+    // FUNGSI LOAD DATA PROFIL DARI FIRESTORE
+    // =========================================================================
+    public async void LoadUserProfile(string userId)
+    {
+        FirebaseUser currentUser = auth.CurrentUser;
+        if (currentUser != null)
+        {
+            try
+            {
+                currentIdToken = await currentUser.TokenAsync(true);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("Gagal mengambil token untuk debug: " + ex.Message);
+            }
+        }
+
+        try
+        {
+            DocumentReference docRef = db.Collection("users").Document(userId);
+            DocumentSnapshot snapshot = await docRef.GetSnapshotAsync();
+
+            if (snapshot.Exists)
+            {
+                var data = snapshot.ToDictionary();
+
+                if (usernameText != null && data.ContainsKey("displayName"))
+                    usernameText.text = data["displayName"].ToString();
+
+                if (emailText != null && data.ContainsKey("email"))
+                    emailText.text = data["email"].ToString();
+
+                int points = 0;
+                if (data.ContainsKey("pointsChallenge"))
+                {
+                    points = Convert.ToInt32(data["pointsChallenge"]);
+                }
+
+                if (PointManager.Instance != null)
+                {
+                    PointManager.Instance.SetLocalPoints(points);
+                }
+                else if (pointsText != null)
+                {
+                    pointsText.text = "Points : " + points;
+                }
+
+                if (data.ContainsKey("avatarUrl") && !string.IsNullOrEmpty(data["avatarUrl"].ToString()))
+                {
+                    string url = data["avatarUrl"].ToString();
+                    StartCoroutine(DownloadAvatar(url));
+                }
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[Firestore] Error loading profile: " + e.Message);
+        }
+    }
+
+    private IEnumerator DownloadAvatar(string url)
+    {
+        using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
+        {
+            yield return request.SendWebRequest();
+
+            if (request.result == UnityWebRequest.Result.Success)
+            {
+                Texture2D texture = DownloadHandlerTexture.GetContent(request);
+                if (iconAvatar != null)
+                {
+                    icon_Avatar = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0.5f));
+                    iconAvatar.sprite = icon_Avatar;
+                }
+            }
+            else
+            {
+                Debug.LogError("[Avatar] Gagal download avatar: " + request.error);
+            }
+        }
+    }
+
+    private bool IsValidEmail(string email)
+    {
+        string pattern = @"^[^@\s]+@[^@\s]+\.[^@\s]+$";
+        return Regex.IsMatch(email, pattern);
+    }
+
+    // =========================================================================
+    // 1. FUNGSI REGISTER (BUAT AKUN BARU)
+    // =========================================================================
+    public async void RegisterUser()
+    {
+        if (!isFirebaseReady)
+        {
+            ShowFeedback("Firebase belum siap, tunggu sebentar...", Color.yellow);
+            return;
+        }
+
+        string username = regUsernameInput.text;
+        string email = regEmailInput.text;
+        string password = regPasswordInput.text;
+        string confirmPassword = regConfirmPasswordInput.text;
+
+        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(email) ||
+            string.IsNullOrEmpty(password) || string.IsNullOrEmpty(confirmPassword))
+        {
+            ShowFeedback("Semua kolom harus diisi!", Color.red);
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            ShowFeedback("Format email tidak valid! (contoh: user@mail.com)", Color.red);
+            return;
+        }
+
+        if (password != confirmPassword)
+        {
+            ShowFeedback("Password dan Konfirmasi Password tidak sama!", Color.red);
+            return;
+        }
+
+        if (password.Length < 6)
+        {
+            ShowFeedback("Password minimal harus 6 karakter!", Color.red);
+            return;
+        }
+
+        ShowLoading();
+        registerButton.interactable = false;
+        ShowFeedback("Membuat akun...", Color.yellow);
+
+        try
+        {
+            AuthResult result = await auth.CreateUserWithEmailAndPasswordAsync(email, password);
+            FirebaseUser newUser = result.User;
+
+            UserProfile profile = new UserProfile { DisplayName = username };
+            await newUser.UpdateUserProfileAsync(profile);
+
+            DocumentReference docRef = db.Collection("users").Document(newUser.UserId);
+
+            var userData = new System.Collections.Generic.Dictionary<string, object>
+            {
+                { "displayName", username },
+                { "email", email },
+                { "pointsChallenge", 0 },
+                { "avatarUrl", "" },
+                { "createdAt", FieldValue.ServerTimestamp }
+            };
+
+            await docRef.SetAsync(userData, SetOptions.MergeAll);
+
+            LoadUserProfile(newUser.UserId);
+            ShowFeedback("Register Sukses!", Color.green);
+
+            regUsernameInput.text = "";
+            regEmailInput.text = "";
+            regPasswordInput.text = "";
+            regConfirmPasswordInput.text = "";
+
+            ShowProfilePanel();
+
+            // REAL-TIME: Jalankan panel rank setelah berhasil register & masuk akun
+            if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(true);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            ShowFeedback("Gagal Register: Email mungkin sudah digunakan.", Color.red);
+        }
+        finally
+        {
+            registerButton.interactable = true;
+            HideLoading();
+        }
+    }
+
+    // =========================================================================
+    // 2. FUNGSI LOGIN (MASUK KE AKUN)
+    // =========================================================================
+    public async void LoginUser()
+    {
+        if (!isFirebaseReady)
+        {
+            ShowFeedback("Firebase belum siap, tunggu sebentar...", Color.yellow);
+            return;
+        }
+
+        string email = loginEmailInput.text;
+        string password = loginPasswordInput.text;
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password))
+        {
+            ShowFeedback("Email dan Password harus diisi!", Color.red);
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            ShowFeedback("Format email tidak valid!", Color.red);
+            return;
+        }
+
+        ShowLoading();
+        loginButton.interactable = false;
+        ShowFeedback("Sedang Login...", Color.yellow);
+
+        try
+        {
+            AuthResult result = await auth.SignInWithEmailAndPasswordAsync(email, password);
+            FirebaseUser user = result.User;
+
+            LoadUserProfile(user.UserId);
+            ShowFeedback($"Selamat datang, {user.DisplayName}!", Color.green);
+
+            if (FirestoreManagerPuzzle.Instance != null)
+            {
+                await FirestoreManagerPuzzle.Instance.LoadPuzzleMatchData();
+            }
+
+            Debug.Log("[Auth] Login sukses, siap masuk ke game.");
+            ShowProfilePanel();
+
+            // REAL-TIME: Aktifkan panel rank setelah berhasil manual login
+            if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(true);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            ShowFeedback("Gagal Login: Email atau Password salah.", Color.red);
+        }
+        finally
+        {
+            loginButton.interactable = true;
+            HideLoading();
+        }
+    }
+
+    // =========================================================================
+    // 3. FUNGSI FORGOT PASSWORD 
+    // =========================================================================
+    public async void ForgotPassword()
+    {
+        if (!isFirebaseReady)
+        {
+            ShowFeedback("Firebase belum siap, tunggu sebentar...", Color.yellow);
+            return;
+        }
+
+        string email = resetEmailInput.text;
+
+        if (string.IsNullOrEmpty(email))
+        {
+            ShowFeedback("Please enter your email first!", Color.red);
+            return;
+        }
+
+        if (!IsValidEmail(email))
+        {
+            ShowFeedback("Invalid email format!", Color.red);
+            return;
+        }
+
+        ShowLoading();
+        resetPasswordButton.interactable = false;
+        ShowFeedback("Sending instruction...", Color.yellow);
+
+        try
+        {
+            await auth.SendPasswordResetEmailAsync(email);
+            ShowFeedback("Password reset link sent! Please check your email inbox and spam folder.", Color.green);
+            resetEmailInput.text = "";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[Auth] Gagal kirim email reset: " + e.Message);
+            ShowFeedback("Error: Email not registered or network issue.", Color.red);
+        }
+        finally
+        {
+            resetPasswordButton.interactable = true;
+            HideLoading();
+        }
+    }
+
+    // =========================================================================
+    // FUNGSI PENDUKUNG UI & FEEDBACK
+    // =========================================================================
+    private void ShowFeedback(string message, Color color)
+    {
+        if (feedbackText != null)
+        {
+            feedbackText.text = message;
+            feedbackText.color = color;
+
+            if (feedbackCoroutine != null)
+            {
+                StopCoroutine(feedbackCoroutine);
+            }
+
+            feedbackCoroutine = StartCoroutine(ClearFeedbackAfterDelay(5f));
+        }
+    }
+
+    private IEnumerator ClearFeedbackAfterDelay(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (feedbackText != null) feedbackText.text = "";
+    }
+
+    // =========================================================================
+    // MANAJEMEN PANEL UI
+    // =========================================================================
+    public void SwitchToLoginPanel()
+    {
+        if (profilePanel != null) profilePanel.SetActive(false);
+        if (registerPanel != null) registerPanel.SetActive(false);
+        if (forgotPasswordPanel != null) forgotPasswordPanel.SetActive(false);
+
+        if (loginPanel != null) loginPanel.SetActive(true);
+        ShowFeedback("", Color.white);
+    }
+
+    public void SwitchToRegisterPanel()
+    {
+        if (profilePanel != null) profilePanel.SetActive(false);
+        if (loginPanel != null) loginPanel.SetActive(false);
+        if (forgotPasswordPanel != null) forgotPasswordPanel.SetActive(false);
+
+        if (registerPanel != null) registerPanel.SetActive(true);
+        ShowFeedback("", Color.white);
+    }
+
+    public void SwitchToForgotPasswordPanel()
+    {
+        if (profilePanel != null) profilePanel.SetActive(false);
+        if (loginPanel != null) loginPanel.SetActive(false);
+        if (registerPanel != null) registerPanel.SetActive(false);
+
+        if (forgotPasswordPanel != null) forgotPasswordPanel.SetActive(true);
+        ShowFeedback("", Color.white);
+    }
+
+    public void ShowProfilePanel()
+    {
+        if (loginPanel != null) loginPanel.SetActive(false);
+        if (registerPanel != null) registerPanel.SetActive(false);
+        if (forgotPasswordPanel != null) forgotPasswordPanel.SetActive(false);
+
+        if (profilePanel != null) profilePanel.SetActive(true);
+        ShowFeedback("", Color.white);
+    }
+
+    // =========================================================================
+    // LOGOUT
+    // =========================================================================
+    public void Logout()
+    {
+        if (!isFirebaseReady) return;
+
+        auth.SignOut();
+        Debug.Log("[Auth] User berhasil Logout.");
+
+        if (PlayerPrefsCustom.Instance != null)
+        {
+            PlayerPrefsCustom.ResetToGuestData();
+            Debug.Log("🧹 [Sistem] Data lokal direset ke Guest Data karena pergantian akun.");
+        }
+
+        //SceneManager.LoadSceneAsync("HomeScene");
+        currentIdToken = "";
+        if (usernameText != null) usernameText.text = "";
+        if (emailText != null) emailText.text = "";
+        if (pointsText != null) pointsText.text = "0";
+        if (iconAvatar != null) iconAvatar.sprite = null;
+
+        // REAL-TIME: Langsung hilangkan dan kosongkan rank saat menekan logout
+        if (LeaderBoardManager.Instance != null) LeaderBoardManager.Instance.SetPanelRankState(false);
+
+        icon_Avatar = defaultAvatarSprite;
+        SwitchToLoginPanel();
+    }
+
+    // =========================================================================
+    // FUNGSI PINDAH GAME (SSO KE ARENA FARM)
+    // =========================================================================
+    public async void TransferToArenaFarm()
+    {
+        if (!isFirebaseReady || auth == null || auth.CurrentUser == null)
+        {
+            ShowFeedback("Login dulu bang, baru bisa pindah game!", Color.red);
+            return;
+        }
+
+        ShowFeedback("Menyiapkan kunci akses ke Arena Farm...", Color.yellow);
+
+        try
+        {
+            string idToken = await auth.CurrentUser.TokenAsync(false);
+
+            string baseUrl = "https://arenago-sso-server.onrender.com/play/";
+            string targetEndpoint = "arenafarm";
+            string targetGameId = "ArenaFarm";
+
+            string deepLinkUrl = $"{baseUrl}{targetEndpoint}?token={idToken}&gameId={targetGameId}";
+
+            Debug.Log($"[SSO] Membuka Arena Farm via Server: {deepLinkUrl}");
+            Application.OpenURL(deepLinkUrl);
+
+            ShowFeedback("Membuka Arena Farm...", Color.green);
+        }
+        catch (Exception e)
+        {
+            ShowFeedback("Gagal pindah game: " + e.Message, Color.red);
+            Debug.LogError("[SSO] Gagal pindah game: " + e.Message);
+        }
+    }
+}
+resetnya jangan di level 12 bang, level 1, coin 300 dan life full
+
+Siap, Abang! Kalau begitu, kita buat datanya benar-benar bersih seperti pemain baru (Level 1, Coin 300, Nyawa 5/Full, dan tanpa riwayat skor atau bintang di level manapun).
+
+Untuk ini, Abang cukup menimpa file PlayerPrefsCustom.cs saja. File FirebaseAuthPuzzle.cs tidak perlu diubah lagi karena kodenya sudah benar memanggil fungsi reset tersebut.
+
+Ini dia full code terbaru untuk PlayerPrefsCustom.cs:
+
+C#
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using Firebase.Auth;
+using UnityEngine.UI; // Wajib untuk cek status login
+
+public enum PrefType { Int, Float, String }
+
+[System.Serializable]
+public class PrefEntry
+{
+    public string key;
+    public PrefType type;
+    public int intValue;
+    public float floatValue;
+    public string stringValue;
+}
+
+[System.Serializable]
+public class PrefSaveData
+{
+    public List<PrefEntry> entries = new List<PrefEntry>();
+}
+
+public class PlayerPrefsCustom : MonoBehaviour
+{
+    [Header("Live Data (Bisa dilihat di Inspector)")]
+    public PrefSaveData saveData = new PrefSaveData();
+
+    [Header("Player Progress Stats")]
+    public Text PlayerXPText;
+    public Text PlayerTitleText;
+    public string PlayerTitle;
+    public int Level;
+    public int TotalStars;
+    public int TotalScore;
+
+    [Header("Preview JSON")]
+    [TextArea(10, 20)]
+    public string jsonPreview;
+
+    public static bool isWiped = false;
+
+    private Dictionary<string, PrefEntry> dataCache = new Dictionary<string, PrefEntry>();
+    private string saveFilePath;
+    private bool hasInitialized = false;
+
+    private static PlayerPrefsCustom _instance;
+    public static PlayerPrefsCustom Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindObjectOfType<PlayerPrefsCustom>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("PlayerPrefsCustom_Manager");
+                    _instance = go.AddComponent<PlayerPrefsCustom>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            _instance.Init();
+            return _instance;
+        }
+    }
+
+    void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (_instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Init();
+    }
+
+    private void Init()
+    {
+        if (hasInitialized) return;
+        hasInitialized = true;
+
+        saveFilePath = Application.persistentDataPath + "/PlayerPrefsCustom.json";
+
+        // 1. Load data lokal agar game bisa langsung jalan tanpa nunggu internet
+        LoadInternal();
+
+        // 2. Cek Cloud untuk memastikan data lokal adalah yang terbaru
+        AutoLoadFromCloud();
+    }
+
+    private async void AutoLoadFromCloud()
+    {
+        // Beri jeda sedikit agar Firebase selesai inisialisasi di background
+        await System.Threading.Tasks.Task.Delay(500);
+
+        try
+        {
+            if (FirebaseAuth.DefaultInstance != null && FirebaseAuth.DefaultInstance.CurrentUser != null)
+            {
+                if (FirestoreManagerPuzzle.Instance != null)
+                {
+                    Debug.Log("☁️ [PlayerPrefsCustom] Sinkronisasi awal: Menarik data terbaru dari Firestore...");
+                    await FirestoreManagerPuzzle.Instance.LoadPuzzleMatchData();
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[PlayerPrefsCustom] Gagal Auto-Load dari Cloud: " + e.Message);
+        }
+    }
+
+    private void LoadInternal()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            string json = File.ReadAllText(saveFilePath);
+            saveData = JsonUtility.FromJson<PrefSaveData>(json);
+            jsonPreview = json;
+
+            dataCache.Clear();
+            foreach (var entry in saveData.entries)
+            {
+                dataCache[entry.key] = entry;
+            }
+
+            UpdateInspectorStats(); // Update stats di inspector setelah data diload
+        }
+    }
+
+    private void SaveInternal()
+    {
+        if (isWiped && dataCache.Count == 0) return;
+
+        saveData.entries = dataCache.Values.ToList();
+        string json = JsonUtility.ToJson(saveData, true);
+        jsonPreview = json;
+        File.WriteAllText(saveFilePath, json);
+        isWiped = false;
+
+        UpdateInspectorStats(); // Update stats di inspector setelah data disave
+    }
+
+    private void UpdateInspectorStats()
+    {
+        Level = GetInt("next_level", 0);
+
+        int tempStars = 0;
+        int tempScore = 0;
+
+        foreach (var entry in saveData.entries)
+        {
+            if (entry.type == PrefType.Int)
+            {
+                if (entry.key.StartsWith("level_stars_"))
+                {
+                    tempStars += entry.intValue;
+                }
+                else if (entry.key.StartsWith("level_score_"))
+                {
+                    tempScore += entry.intValue;
+                }
+            }
+        }
+
+        TotalStars = tempStars;
+        TotalScore = tempScore;
+        if (PlayerXPText != null) PlayerXPText.text = "Experience : " + TotalScore.ToString();
+
+        // Panggil penentuan title setelah total bintang & skor didapat
+        PlayerTitle = GetPlayerTitle();
+        if (PlayerTitleText != null) PlayerTitleText.text = "Title : " + PlayerTitle;
+    }
+
+    private PrefEntry GetOrCreateEntry(string key, PrefType type)
+    {
+        if (dataCache.TryGetValue(key, out PrefEntry entry))
+        {
+            entry.type = type;
+            return entry;
+        }
+        PrefEntry newEntry = new PrefEntry { key = key, type = type };
+        dataCache[key] = newEntry;
+        return newEntry;
+    }
+
+    public static void SetInt(string key, int value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Int); entry.intValue = value; Instance.SaveInternal(); }
+    public static int GetInt(string key, int defaultValue = 0) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Int) ? entry.intValue : defaultValue; }
+
+    public static void SetFloat(string key, float value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Float); entry.floatValue = value; Instance.SaveInternal(); }
+    public static float GetFloat(string key, float defaultValue = 0f) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Float) ? entry.floatValue : defaultValue; }
+
+    public static void SetString(string key, string value) { var entry = Instance.GetOrCreateEntry(key, PrefType.String); entry.stringValue = value; Instance.SaveInternal(); }
+    public static string GetString(string key, string defaultValue = "") { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.String) ? entry.stringValue : defaultValue; }
+
+    public static bool HasKey(string key) { return Instance.dataCache.ContainsKey(key); }
+    public static void DeleteKey(string key) { if (Instance.dataCache.ContainsKey(key)) { Instance.dataCache.Remove(key); Instance.SaveInternal(); } }
+
+    public static void DeleteAll()
+    {
+        if (_instance != null)
+        {
+            _instance.dataCache.Clear();
+            _instance.saveData.entries.Clear();
+            _instance.jsonPreview = "Data Kosong.";
+
+            // Reset stats di Inspector
+            _instance.Level = 0;
+            _instance.TotalStars = 0;
+            _instance.TotalScore = 0;
+            _instance.PlayerTitle = "Novice";
+        }
+        isWiped = true;
+        if (File.Exists(Application.persistentDataPath + "/PlayerPrefsCustom.json")) File.Delete(Application.persistentDataPath + "/PlayerPrefsCustom.json");
+    }
+
+    public static void Save() { Instance.SaveInternal(); }
+
+    void OnApplicationQuit() { if (!isWiped) SaveInternal(); }
+
+    public string GetPlayerTitle()
+    {
+        // Langsung menggunakan variabel TotalStars karena sudah di-set di UpdateInspectorStats()
+        if (TotalStars >= 300) return "Legend";
+        if (TotalStars >= 290) return "Grandmaster";
+        if (TotalStars >= 260) return "Master";
+        if (TotalStars >= 230) return "Expert";
+        if (TotalStars >= 190) return "Veteran";
+        if (TotalStars >= 150) return "Professional";
+        if (TotalStars >= 120) return "Challenger";
+        if (TotalStars >= 90) return "Adventurer";
+        if (TotalStars >= 60) return "Wanderer";
+        if (TotalStars >= 30) return "Apprentice";
+
+        return "Novice";
+    }
+
+    // ==========================================
+    // FUNGSI UNTUK MERESET KE DATA DEFAULT (GUEST)
+    // ==========================================
+    public static void ResetToGuestData()
+    {
+        if (_instance != null)
+        {
+            // Json diperbarui: Hanya menampilkan data dasar (Level 1, Coin 300, Nyawa 5)
+            // Semua skor dan bintang dihapus agar pemain benar-benar mulai dari 0.
+            string defaultJson = @"{
+                ""entries"": [
+                    { ""key"": ""num_lives"", ""type"": 0, ""intValue"": 5, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_life_time"", ""type"": 2, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""num_coins"", ""type"": 0, ""intValue"": 300, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_level"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""sound_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""music_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""notifications_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" }
+                ]
+            }";
+
+            isWiped = false; 
+
+            _instance.saveData = JsonUtility.FromJson<PrefSaveData>(defaultJson);
+
+            _instance.dataCache.Clear();
+            foreach (var entry in _instance.saveData.entries)
+            {
+                _instance.dataCache[entry.key] = entry;
+            }
+
+            _instance.UpdateInspectorStats();
+            _instance.SaveInternal();
+            
+            Debug.Log("🔄 [PlayerPrefsCustom] Data dikembalikan ke Guest Data Default (Level 1, Koin 300, Nyawa Full).");
+        }
+    }
+}
+Nanti saat user memencet Logout, kodenya akan membuang semua riwayat score dan stars (karena tidak tertulis di JSON atas) dan langsung mengatur next_level ke 1 serta koin ke 300. Langsung aman, Bang!
+
+pointnya 0 bang
+
+Siap, Abang! Kita tambahkan kunci untuk poinnya agar ikut ter-reset menjadi 0 saat kembali ke data Guest. Saya tambahkan key "pointsChallenge" (dan juga "points" untuk jaga-jaga kalau sistem lokalnya pakai nama itu) dengan nilai 0 ke dalam JSON bawaannya.
+
+Ini dia full code terbaru untuk file PlayerPrefsCustom.cs. Abang tinggal copy-paste dan timpa semua isi file yang lama:
+
+C#
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using UnityEngine;
+using Firebase.Auth;
+using UnityEngine.UI; // Wajib untuk cek status login
+
+public enum PrefType { Int, Float, String }
+
+[System.Serializable]
+public class PrefEntry
+{
+    public string key;
+    public PrefType type;
+    public int intValue;
+    public float floatValue;
+    public string stringValue;
+}
+
+[System.Serializable]
+public class PrefSaveData
+{
+    public List<PrefEntry> entries = new List<PrefEntry>();
+}
+
+public class PlayerPrefsCustom : MonoBehaviour
+{
+    [Header("Live Data (Bisa dilihat di Inspector)")]
+    public PrefSaveData saveData = new PrefSaveData();
+
+    [Header("Player Progress Stats")]
+    public Text PlayerXPText;
+    public Text PlayerTitleText;
+    public string PlayerTitle;
+    public int Level;
+    public int TotalStars;
+    public int TotalScore;
+
+    [Header("Preview JSON")]
+    [TextArea(10, 20)]
+    public string jsonPreview;
+
+    public static bool isWiped = false;
+
+    private Dictionary<string, PrefEntry> dataCache = new Dictionary<string, PrefEntry>();
+    private string saveFilePath;
+    private bool hasInitialized = false;
+
+    private static PlayerPrefsCustom _instance;
+    public static PlayerPrefsCustom Instance
+    {
+        get
+        {
+            if (_instance == null)
+            {
+                _instance = FindObjectOfType<PlayerPrefsCustom>();
+                if (_instance == null)
+                {
+                    GameObject go = new GameObject("PlayerPrefsCustom_Manager");
+                    _instance = go.AddComponent<PlayerPrefsCustom>();
+                    DontDestroyOnLoad(go);
+                }
+            }
+            _instance.Init();
+            return _instance;
+        }
+    }
+
+    void Awake()
+    {
+        if (_instance == null)
+        {
+            _instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else if (_instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+        Init();
+    }
+
+    private void Init()
+    {
+        if (hasInitialized) return;
+        hasInitialized = true;
+
+        saveFilePath = Application.persistentDataPath + "/PlayerPrefsCustom.json";
+
+        // 1. Load data lokal agar game bisa langsung jalan tanpa nunggu internet
+        LoadInternal();
+
+        // 2. Cek Cloud untuk memastikan data lokal adalah yang terbaru
+        AutoLoadFromCloud();
+    }
+
+    private async void AutoLoadFromCloud()
+    {
+        // Beri jeda sedikit agar Firebase selesai inisialisasi di background
+        await System.Threading.Tasks.Task.Delay(500);
+
+        try
+        {
+            if (FirebaseAuth.DefaultInstance != null && FirebaseAuth.DefaultInstance.CurrentUser != null)
+            {
+                if (FirestoreManagerPuzzle.Instance != null)
+                {
+                    Debug.Log("☁️ [PlayerPrefsCustom] Sinkronisasi awal: Menarik data terbaru dari Firestore...");
+                    await FirestoreManagerPuzzle.Instance.LoadPuzzleMatchData();
+                }
+            }
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[PlayerPrefsCustom] Gagal Auto-Load dari Cloud: " + e.Message);
+        }
+    }
+
+    private void LoadInternal()
+    {
+        if (File.Exists(saveFilePath))
+        {
+            string json = File.ReadAllText(saveFilePath);
+            saveData = JsonUtility.FromJson<PrefSaveData>(json);
+            jsonPreview = json;
+
+            dataCache.Clear();
+            foreach (var entry in saveData.entries)
+            {
+                dataCache[entry.key] = entry;
+            }
+
+            UpdateInspectorStats(); // Update stats di inspector setelah data diload
+        }
+    }
+
+    private void SaveInternal()
+    {
+        if (isWiped && dataCache.Count == 0) return;
+
+        saveData.entries = dataCache.Values.ToList();
+        string json = JsonUtility.ToJson(saveData, true);
+        jsonPreview = json;
+        File.WriteAllText(saveFilePath, json);
+        isWiped = false;
+
+        UpdateInspectorStats(); // Update stats di inspector setelah data disave
+    }
+
+    private void UpdateInspectorStats()
+    {
+        Level = GetInt("next_level", 0);
+
+        int tempStars = 0;
+        int tempScore = 0;
+
+        foreach (var entry in saveData.entries)
+        {
+            if (entry.type == PrefType.Int)
+            {
+                if (entry.key.StartsWith("level_stars_"))
+                {
+                    tempStars += entry.intValue;
+                }
+                else if (entry.key.StartsWith("level_score_"))
+                {
+                    tempScore += entry.intValue;
+                }
+            }
+        }
+
+        TotalStars = tempStars;
+        TotalScore = tempScore;
+        if (PlayerXPText != null) PlayerXPText.text = "Experience : " + TotalScore.ToString();
+
+        // Panggil penentuan title setelah total bintang & skor didapat
+        PlayerTitle = GetPlayerTitle();
+        if (PlayerTitleText != null) PlayerTitleText.text = "Title : " + PlayerTitle;
+    }
+
+    private PrefEntry GetOrCreateEntry(string key, PrefType type)
+    {
+        if (dataCache.TryGetValue(key, out PrefEntry entry))
+        {
+            entry.type = type;
+            return entry;
+        }
+        PrefEntry newEntry = new PrefEntry { key = key, type = type };
+        dataCache[key] = newEntry;
+        return newEntry;
+    }
+
+    public static void SetInt(string key, int value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Int); entry.intValue = value; Instance.SaveInternal(); }
+    public static int GetInt(string key, int defaultValue = 0) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Int) ? entry.intValue : defaultValue; }
+
+    public static void SetFloat(string key, float value) { var entry = Instance.GetOrCreateEntry(key, PrefType.Float); entry.floatValue = value; Instance.SaveInternal(); }
+    public static float GetFloat(string key, float defaultValue = 0f) { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.Float) ? entry.floatValue : defaultValue; }
+
+    public static void SetString(string key, string value) { var entry = Instance.GetOrCreateEntry(key, PrefType.String); entry.stringValue = value; Instance.SaveInternal(); }
+    public static string GetString(string key, string defaultValue = "") { return (Instance.dataCache.TryGetValue(key, out PrefEntry entry) && entry.type == PrefType.String) ? entry.stringValue : defaultValue; }
+
+    public static bool HasKey(string key) { return Instance.dataCache.ContainsKey(key); }
+    public static void DeleteKey(string key) { if (Instance.dataCache.ContainsKey(key)) { Instance.dataCache.Remove(key); Instance.SaveInternal(); } }
+
+    public static void DeleteAll()
+    {
+        if (_instance != null)
+        {
+            _instance.dataCache.Clear();
+            _instance.saveData.entries.Clear();
+            _instance.jsonPreview = "Data Kosong.";
+
+            // Reset stats di Inspector
+            _instance.Level = 0;
+            _instance.TotalStars = 0;
+            _instance.TotalScore = 0;
+            _instance.PlayerTitle = "Novice";
+        }
+        isWiped = true;
+        if (File.Exists(Application.persistentDataPath + "/PlayerPrefsCustom.json")) File.Delete(Application.persistentDataPath + "/PlayerPrefsCustom.json");
+    }
+
+    public static void Save() { Instance.SaveInternal(); }
+
+    void OnApplicationQuit() { if (!isWiped) SaveInternal(); }
+
+    public string GetPlayerTitle()
+    {
+        // Langsung menggunakan variabel TotalStars karena sudah di-set di UpdateInspectorStats()
+        if (TotalStars >= 300) return "Legend";
+        if (TotalStars >= 290) return "Grandmaster";
+        if (TotalStars >= 260) return "Master";
+        if (TotalStars >= 230) return "Expert";
+        if (TotalStars >= 190) return "Veteran";
+        if (TotalStars >= 150) return "Professional";
+        if (TotalStars >= 120) return "Challenger";
+        if (TotalStars >= 90) return "Adventurer";
+        if (TotalStars >= 60) return "Wanderer";
+        if (TotalStars >= 30) return "Apprentice";
+
+        return "Novice";
+    }
+
+    // ==========================================
+    // FUNGSI UNTUK MERESET KE DATA DEFAULT (GUEST)
+    // ==========================================
+    public static void ResetToGuestData()
+    {
+        if (_instance != null)
+        {
+            // Json diperbarui: Menambahkan pointsChallenge dan points diset 0
+            string defaultJson = @"{
+                ""entries"": [
+                    { ""key"": ""num_lives"", ""type"": 0, ""intValue"": 5, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_life_time"", ""type"": 2, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""num_coins"", ""type"": 0, ""intValue"": 300, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""next_level"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""pointsChallenge"", ""type"": 0, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""points"", ""type"": 0, ""intValue"": 0, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""sound_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""music_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" },
+                    { ""key"": ""notifications_enabled"", ""type"": 0, ""intValue"": 1, ""floatValue"": 0.0, ""stringValue"": """" }
+                ]
+            }";
+
+            isWiped = false; 
+
+            _instance.saveData = JsonUtility.FromJson<PrefSaveData>(defaultJson);
+
+            _instance.dataCache.Clear();
+            foreach (var entry in _instance.saveData.entries)
+            {
+                _instance.dataCache[entry.key] = entry;
+            }
+
+            _instance.UpdateInspectorStats();
+            _instance.SaveInternal();
+            
+            Debug.Log("🔄 [PlayerPrefsCustom] Data dikembalikan ke Guest Data Default (Level 1, Koin 300, Nyawa Full, Poin 0).");
+        }
+    }
+}
+using UnityEngine;
+
+using Firebase.Firestore;
+
+using Firebase.Auth;
+
+using System;
+
+using System.Threading.Tasks;
+
+
+
+public class PointManager : MonoBehaviour
+
+{
+
+public static PointManager Instance;
+
+
+
+// Event yang bisa di-subscribe oleh script lain (seperti UI)
+
+public static Action<int> OnPointsChanged;
+
+
+
+private int currentPoints = 0;
+
+private FirebaseFirestore db;
+
+
+
+private void Awake()
+
+{
+
+if (Instance == null)
+
+{
+
+Instance = this;
+
+DontDestroyOnLoad(gameObject);
+
+}
+
+else
+
+{
+
+Destroy(gameObject);
+
+}
+
+}
+
+
+
+private void Start()
+
+{
+
+db = FirebaseFirestore.DefaultInstance;
+
+}
+
+
+
+/// <summary>
+
+/// Mengatur nilai poin lokal dan memicu event ke semua UI
+
+/// </summary>
+
+public void SetLocalPoints(int amount)
+
+{
+
+currentPoints = amount;
+
+OnPointsChanged?.Invoke(currentPoints);
+
+}
+
+
+
+public int GetCurrentPoints() => currentPoints;
+
+
+
+/// <summary>
+
+/// Menambah poin ke Firestore
+
+/// </summary>
+
+public async Task AddPoints(int amount)
+
+{
+
+await UpdatePointsInFirestore(currentPoints + amount);
+
+}
+
+
+
+/// <summary>
+
+/// Mengurangi poin di Firestore
+
+/// </summary>
+
+public async Task<bool> SubtractPoints(int amount)
+
+{
+
+if (currentPoints >= amount)
+
+{
+
+await UpdatePointsInFirestore(currentPoints - amount);
+
+return true;
+
+}
+
+Debug.LogWarning("Poin tidak cukup!");
+
+return false;
+
+}
+
+
+
+private async Task UpdatePointsInFirestore(int newTotal)
+
+{
+
+FirebaseUser user = FirebaseAuth.DefaultInstance.CurrentUser;
+
+if (user == null) return;
+
+
+
+try
+
+{
+
+DocumentReference docRef = db.Collection("users").Document(user.UserId);
+
+
+
+// Update di server
+
+await docRef.UpdateAsync("pointsChallenge", newTotal);
+
+
+
+// Update lokal dan pemicu Event UI
+
+SetLocalPoints(newTotal);
+
+
+
+Debug.Log($"[PointManager] Poin berhasil diupdate: {newTotal}");
+
+}
+
+catch (Exception e)
+
+{
+
+Debug.LogError($"[PointManager] Gagal update poin: {e.Message}");
+
+}
+
+}
+
+}
+
+
+
+ini saja saat logout poinya 0 agar semua UI sucribe berubah menjadi 0
+
+Ide yang sangat bagus, Abang! Karena Abang sudah membuat sistem PointManager yang menggunakan Event/Action (OnPointsChanged), ini jauh lebih bersih dan efisien. Jadi, UI tidak perlu diatur satu per satu secara manual.
+
+Kita cukup menambahkan satu fungsi kecil di PointManager untuk me-reset poin, lalu memanggilnya saat Logout.
+
+Berikut adalah kode PointManager.cs yang sudah saya tambahkan fungsi ResetPoints():
+
+C#
+using UnityEngine;
+using Firebase.Firestore;
+using Firebase.Auth;
+using System;
+using System.Threading.Tasks;
+
+public class PointManager : MonoBehaviour
+{
+    public static PointManager Instance;
+
+    // Event yang bisa di-subscribe oleh script lain (seperti UI)
+    public static Action<int> OnPointsChanged;
+
+    private int currentPoints = 0;
+    private FirebaseFirestore db;
+
+    private void Awake()
+    {
+        if (Instance == null)
+        {
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+        else
+        {
+            Destroy(gameObject);
+        }
+    }
+
+    private void Start()
+    {
+        db = FirebaseFirestore.DefaultInstance;
+    }
+
+    /// <summary>
+    /// Mengatur nilai poin lokal dan memicu event ke semua UI
+    /// </summary>
+    public void SetLocalPoints(int amount)
+    {
+        currentPoints = amount;
+        OnPointsChanged?.Invoke(currentPoints);
+    }
+
+    public int GetCurrentPoints() => currentPoints;
+
+    /// <summary>
+    /// Menambah poin ke Firestore
+    /// </summary>
+    public async Task AddPoints(int amount)
+    {
+        await UpdatePointsInFirestore(currentPoints + amount);
+    }
+
+    /// <summary>
+    /// Mengurangi poin di Firestore
+    /// </summary>
+    public async Task<bool> SubtractPoints(int amount)
+    {
+        if (currentPoints >= amount)
+        {
+            await UpdatePointsInFirestore(currentPoints - amount);
+            return true;
+        }
+        Debug.LogWarning("Poin tidak cukup!");
+        return false;
+    }
+
+    private async Task UpdatePointsInFirestore(int newTotal)
+    {
+        FirebaseUser user = FirebaseAuth.DefaultInstance.CurrentUser;
+        if (user == null) return;
+
+        try
+        {
+            DocumentReference docRef = db.Collection("users").Document(user.UserId);
+
+            // Update di server
+            await docRef.UpdateAsync("pointsChallenge", newTotal);
+
+            // Update lokal dan pemicu Event UI
+            SetLocalPoints(newTotal);
+
+            Debug.Log($"[PointManager] Poin berhasil diupdate: {newTotal}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"[PointManager] Gagal update poin: {e.Message}");
+        }
+    }
+
+    // ==========================================
+    // FUNGSI BARU UNTUK LOGOUT / RESET
+    // ==========================================
+    /// <summary>
+    /// Mereset poin menjadi 0 secara lokal (dipanggil saat logout)
+    /// </summary>
+    public void ResetPoints()
+    {
+        SetLocalPoints(0);
+        Debug.Log("[PointManager] Poin di-reset ke 0 (Guest Mode).");
+    }
+}
+Penyesuaian di FirebaseAuthPuzzle.cs
+Sekarang, karena Abang sudah memusatkan urusan poin di PointManager, Abang bisa memanggilnya saat proses Logout.
+
+Di dalam file FirebaseAuthPuzzle.cs, cari fungsi Logout(), lalu ganti baris yang dulunya mengatur teks UI secara manual ini:
+
+C#
+if (pointsText != null) pointsText.text = "0";
+Menjadi seperti ini:
+
+C#
+if (PointManager.Instance != null) PointManager.Instance.ResetPoints();
+Dengan begitu, ketika user Logout, fungsi ResetPoints() akan berjalan, mengubah currentPoints menjadi 0, dan otomatis meneriakkan (Invoke) event OnPointsChanged ke semua script UI yang sedang menempel pada event tersebut! Sangat rapi, Bang!
+
+berikan peringatan keras untuk konfirmasi delete akun dalam bahasa ingris
+
+Siap, Abang! Untuk urusan delete account, peringatannya memang harus dibuat sejelas dan sekeras mungkin agar player tidak asal pencet lalu komplain datanya hilang.
+
+Mengingat game Abang memiliki sistem koin, level, dan poin challenge, ini beberapa pilihan teks peringatan keras dalam bahasa Inggris, dari yang singkat sampai yang sangat detail. Abang bisa pilih yang paling pas dengan ukuran UI (seperti di AlertPopup sebelumnya):
+
+Opsi 1: Singkat, Padat, & Keras (Cocok untuk Popup Kecil)
+Title: ⚠️ Delete Account?
+Message: > This action is permanent and cannot be undone. All your progress, coins, and points will be lost forever. Are you absolutely sure?
+
+Opsi 2: Sangat Tegas & Detail (Rekomendasi)
+Title: ⚠️ DANGER: PERMANENT ACCOUNT DELETION ⚠️
+Message: > You are about to permanently delete your account. This action CANNOT be undone under any circumstances.
+
+You will instantly and forever lose:
+• All Levels, Stars, and Game Progress
+• All your Coins and Challenge Points
+• Any In-App Purchase history
+
+Do you wish to proceed and destroy your account forever?
+
+Opsi 3: Ekstra Keras (Biasanya pakai konfirmasi ketik "DELETE")
+Title: ⚠️ WARNING: ACCOUNT TERMINATION
+Message: > Deleting your account will wipe all your data from our servers permanently. There is no recovery. Your levels, coins, and purchased items will be gone forever.
+
+If you are absolutely certain, please tap the confirm button below.
+
+Saran Tambahan untuk Tombol (Buttons):
+Biar UX-nya makin aman, bedakan warna tombolnya, Bang:
+
+Tombol Cancel / Batal (Warna Hijau/Biru): Cancel atau No, Keep My Account
+
+Tombol Hapus (Warna Merah Terang): YES, DELETE FOREVER atau Delete My Account
+
+tambah juga delete account peringatan akun arenago juga akan terhapus atau delete
+
+Masuk akal, Bang! Karena sistem Abang menggunakan Single Sign-On (SSO) yang terhubung ke server ArenaGo (seperti yang ada di script TransferToArenaFarm sebelumnya), menghapus akun di satu game berarti menghapus akses ke seluruh ekosistem gamenya. Ini sangat krusial untuk diinformasikan.
+
+Berikut adalah pembaruan teks peringatannya dengan tambahan informasi mengenai akun ArenaGo:
+
+Opsi 1: Singkat, Padat, & Keras (Cocok untuk Popup Standar)
+Title: ⚠️ Delete Account?
+Message: > This action is permanent and cannot be undone. All your progress, coins, points, AND your connected ArenaGo account will be lost forever. Are you absolutely sure?
+
+Opsi 2: Sangat Tegas & Detail (Sangat Direkomendasikan)
+Title: ⚠️ DANGER: PERMANENT ACCOUNT DELETION ⚠️
+Message: > You are about to permanently delete your account. This action CANNOT be undone under any circumstances.
+
+You will instantly and forever lose:
+• All Levels, Stars, and Game Progress
+• All your Coins and Challenge Points
+• Any In-App Purchase history
+• Your connected ArenaGo account and all its associated data
+
+Do you wish to proceed and destroy your account forever?
+
+Opsi 3: Ekstra Keras (Untuk sistem yang meminta ketik "DELETE")
+Title: ⚠️ WARNING: ACCOUNT & ARENAGO TERMINATION
+Message: > Deleting your account will wipe all your data from our servers permanently. There is no recovery.
+
+Because your account is linked, your ArenaGo account and all progress across connected games will also be destroyed forever.
+
+If you are absolutely certain, please tap the confirm button below.
+
+Tips untuk Abang:
+Mengingat dampaknya menyebar ke ArenaGo, sangat disarankan pakai Opsi 2 atau Opsi 3. Pemain terkadang tidak sadar kalau akun yang mereka pakai itu tersinkronisasi (linked) ke game lain. Dengan menyebutkan "ArenaGo" secara eksplisit, mereka akan berpikir dua kali sebelum memencet tombol Delete yang berwarna merah.
+
+flownya delete akun saya harus masukan yg dipakai email kedalam inputfield, jadi user disuruh masukin email dulu coba kata katanya
+
+Wah, flow yang sangat bagus dan aman, Bang! Meminta user mengetikkan email mereka sendiri adalah standar industri terbaik (best practice) untuk mencegah fitur Delete Account terpencet secara tidak sengaja.
+
+Berikut adalah pilihan kata-katanya dalam bahasa Inggris, disesuaikan dengan flow baru di mana user harus memasukkan email ke dalam InputField:
+
+Opsi 1: Jelas dan Langsung (Direkomendasikan)
+Title: ⚠️ CONFIRM ACCOUNT DELETION ⚠️
+Message: > This action is permanent and cannot be undone. You will lose all your game progress, coins, challenge points, AND your connected ArenaGo account forever.
+
+If you are absolutely sure, please type your registered email address below to confirm.
+Placeholder InputField: Enter your email address...
+Button: DELETE MY ACCOUNT
+
+Opsi 2: Lebih Detail dan Intimidatif (Sangat Aman)
+Title: ⚠️ DANGER: PERMANENT DELETION ⚠️
+Message: > You are about to permanently destroy your account. There is no recovery.
+
+You will instantly lose:
+• All Game Progress, Coins, and Points
+• Any In-App Purchases
+• Your ArenaGo account and all associated data
+
+To proceed with this permanent deletion, please verify your identity by typing your email address below.
+Placeholder InputField: Type your email here...
+Button: PERMANENTLY DELETE
+
+Opsi 3: Singkat dan Padat (Jika ruang UI terbatas)
+Title: ⚠️ DELETE ACCOUNT & ARENAGO DATA?
+Message: > Warning! This will permanently erase your game progress and your connected ArenaGo account forever.
+
+Please enter your email address below to verify and confirm deletion.
+Placeholder InputField: Email address
+Button: CONFIRM DELETE
+
+Saran Logika di Script Abang Nanti:
+Nanti di tombol Delete-nya, Abang tinggal buat validasi sederhana sebelum memanggil fungsi Firebase user.DeleteAsync(). Misalnya:
+
+C#
+if (inputEmailField.text == FirebaseAuth.DefaultInstance.CurrentUser.Email)
+{
+    // Lanjut proses hapus akun
+}
+else
+{
+    // Munculkan error: "Email does not match!"
+}
+Flow seperti ini dijamin bikin player sadar 100% dengan apa yang mereka lakukan, Bang!
+
+buatkan scriptnya, button delete interable sampai input field cocok dengan email user
+
+Flow yang sangat rapi dan aman, Bang! Dengan membuat tombol Delete tidak bisa diklik (not interactable) sampai inputnya benar, player tidak akan bisa protes karena tidak sengaja memencet.
+
+Untuk implementasinya, Abang bisa membuat script baru khusus untuk menangani panel Delete Account ini. Cara kerjanya adalah dengan memanfaatkan event onValueChanged pada InputField, sehingga setiap kali player mengetik, script akan otomatis mengecek kecocokannya dengan email akun yang sedang login.
+
+Berikut adalah full code untuk script DeleteAccountHandler.cs. Abang bisa buat file C# baru dengan nama ini dan menempelkannya di GameObject panel Delete Account Abang.
+
+C#
+using UnityEngine;
+using UnityEngine.UI;
+using Firebase.Auth;
+using Firebase.Firestore;
+using System;
+using System.Threading.Tasks;
+
+public class DeleteAccountHandler : MonoBehaviour
+{
+    [Header("UI References")]
+    [Tooltip("Input field tempat player mengetik email mereka.")]
+    public InputField emailInputField;
+    
+    [Tooltip("Tombol konfirmasi hapus yang warna merah.")]
+    public Button confirmDeleteButton;
+    
+    [Tooltip("Teks untuk menampilkan pesan error/sukses.")]
+    public Text feedbackText;
+
+    private FirebaseAuth auth;
+    private FirebaseUser currentUser;
+
+    private void OnEnable()
+    {
+        auth = FirebaseAuth.DefaultInstance;
+        currentUser = auth?.CurrentUser;
+
+        // Reset UI setiap kali panel ini dibuka
+        if (emailInputField != null) emailInputField.text = "";
+        if (feedbackText != null) feedbackText.text = "";
+        
+        // Matikan tombol delete di awal
+        if (confirmDeleteButton != null) confirmDeleteButton.interactable = false;
+
+        // Tambahkan listener
+        if (emailInputField != null)
+        {
+            emailInputField.onValueChanged.RemoveAllListeners();
+            emailInputField.onValueChanged.AddListener(ValidateEmailInput);
+        }
+
+        if (confirmDeleteButton != null)
+        {
+            confirmDeleteButton.onClick.RemoveAllListeners();
+            confirmDeleteButton.onClick.AddListener(OnDeleteButtonClicked);
+        }
+    }
+
+    /// <summary>
+    /// Fungsi ini dipanggil otomatis setiap kali user mengetik sesuatu di InputField
+    /// </summary>
+    private void ValidateEmailInput(string input)
+    {
+        if (currentUser == null) return;
+
+        // Cek apakah input persis sama dengan email user (abaikan huruf besar/kecil biar UX-nya enak)
+        if (input.Trim().ToLower() == currentUser.Email.ToLower())
+        {
+            // Jika cocok, nyalakan tombol Delete
+            confirmDeleteButton.interactable = true;
+            if (feedbackText != null) feedbackText.text = ""; // Bersihkan teks peringatan
+        }
+        else
+        {
+            // Jika belum cocok, matikan tombol
+            confirmDeleteButton.interactable = false;
+        }
+    }
+
+    /// <summary>
+    /// Dieksekusi saat tombol Delete yang sudah aktif diklik
+    /// </summary>
+    private async void OnDeleteButtonClicked()
+    {
+        if (currentUser == null) return;
+
+        // Matikan tombol agar tidak di-spam klik
+        confirmDeleteButton.interactable = false;
+        if (feedbackText != null)
+        {
+            feedbackText.color = Color.yellow;
+            feedbackText.text = "Deleting account and data... Please wait.";
+        }
+
+        string userId = currentUser.UserId;
+
+        try
+        {
+            // 1. Hapus data user dari Firestore (wajib agar tidak jadi sampah data / orphaned data)
+            FirebaseFirestore db = FirebaseFirestore.DefaultInstance;
+            DocumentReference docRef = db.Collection("users").Document(userId);
+            await docRef.DeleteAsync();
+
+            // 2. Hapus akun Auth-nya dari Firebase
+            await currentUser.DeleteAsync();
+
+            Debug.Log("✅ [Delete Account] Akun dan data berhasil dihapus permanen.");
+
+            // 3. Reset data lokal agar gamenya bersih
+            if (PlayerPrefsCustom.Instance != null) PlayerPrefsCustom.ResetToGuestData();
+            if (PointManager.Instance != null) PointManager.Instance.ResetPoints();
+
+            // 4. Tutup panel dan kembali ke halaman Login (via FirebaseAuthPuzzle)
+            if (FirebaseAuthPuzzle.Instance != null)
+            {
+                FirebaseAuthPuzzle.Instance.SwitchToLoginPanel();
+            }
+
+            // Opsional: Sembunyikan panel delete ini
+            gameObject.SetActive(false);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"❌ [Delete Account] Gagal menghapus akun: {e.Message}");
+            
+            if (feedbackText != null)
+            {
+                feedbackText.color = Color.red;
+                
+                // Firebase biasanya menolak hapus akun jika user sudah lama tidak login (demi keamanan)
+                // Error ini namanya "RequiresRecentLogin"
+                if (e.Message.Contains("recent authentication"))
+                {
+                    feedbackText.text = "For security reasons, please logout and login again before deleting your account.";
+                }
+                else
+                {
+                    feedbackText.text = "Error deleting account. Please check your connection.";
+                }
+            }
+
+            // Nyalakan tombol lagi agar user bisa coba ulang jika error koneksi
+            confirmDeleteButton.interactable = true;
+        }
+    }
+}
+Panduan Setup di Unity:
+Pasang script DeleteAccountHandler.cs ini ke GameObject panel Delete Account Abang (misalnya Panel_DeleteAccount).
+
+Masukkan InputField tempat player mengetik email ke slot Email Input Field.
+
+Masukkan tombol Delete yang berwarna merah ke slot Confirm Delete Button.
+
+(Opsional) Masukkan teks status ke slot Feedback Text untuk menampilkan loading atau peringatan kalau ada error.
+
+Catatan Penting untuk Abang sebagai Programmer:
+Firebase memiliki aturan keamanan bahwa menghapus akun membutuhkan Recent Authentication (Login baru-baru ini). Kalau player sudah login berminggu-minggu yang lalu dan tiba-tiba klik hapus akun, Firebase akan menolak (error) demi keamanan dari peretas.
+Oleh karena itu, di script atas saya sudah menambahkan fitur penangkap error (catch) yang akan menyuruh player untuk "logout dan login ulang" jika hal itu terjadi. Aman dan sangat standar profesional, Bang!
+
+kalo berhasil delete akun logout dan set data standart guest
+
+Betul sekali, Bang! Daripada kita ketik ulang logika resetnya di script ini, jauh lebih rapi dan efisien kalau kita langsung memanggil fungsi Logout() yang ada di FirebaseAuthPuzzle.cs.
+
+Fungsi Logout() milik Abang kan sudah lengkap; sudah membersihkan UI, mereset PlayerPrefsCustom ke data Guest, mereset PointManager ke 0, dan memindahkan layar ke Panel Login.
+
+Ini dia full code DeleteAccountHandler.cs yang sudah di-update. Begitu akun Firebase dan data Firestore berhasil dihapus, script ini akan langsung memicu fungsi Logout Abang:
+
+C#
+using UnityEngine;
+using UnityEngine.UI;
+using Firebase.Auth;
+using Firebase.Firestore;
+using System;
+using System.Threading.Tasks;
+
+public class DeleteAccountHandler : MonoBehaviour
+{
+    [Header("UI References")]
+    [Tooltip("Input field tempat player mengetik email mereka.")]
+    public InputField emailInputField;
+    
+    [Tooltip("Tombol konfirmasi hapus yang warna merah.")]
+    public Button confirmDeleteButton;
+    
+    [Tooltip("Teks untuk menampilkan pesan error/sukses.")]
+    public Text feedbackText;
+
+    private FirebaseAuth auth;
+    private FirebaseUser currentUser;
+
+    private void OnEnable()
+    {
+        auth = FirebaseAuth.DefaultInstance;
+        currentUser = auth?.CurrentUser;
+
+        // Reset UI setiap kali panel ini dibuka
+        if (emailInputField != null) emailInputField.text = "";
+        if (feedbackText != null) feedbackText.text = "";
+        
+        // Matikan tombol delete di awal
+        if (confirmDeleteButton != null) confirmDeleteButton.interactable = false;
+
+        // Tambahkan listener
+        if (emailInputField != null)
+        {
+            emailInputField.onValueChanged.RemoveAllListeners();
+            emailInputField.onValueChanged.AddListener(ValidateEmailInput);
+        }
+
+        if (confirmDeleteButton != null)
+        {
+            confirmDeleteButton.onClick.RemoveAllListeners();
+            confirmDeleteButton.onClick.AddListener(OnDeleteButtonClicked);
+        }
+    }
+
+    /// <summary>
+    /// Fungsi ini dipanggil otomatis setiap kali user mengetik sesuatu di InputField
+    /// </summary>
+    private void ValidateEmailInput(string input)
+    {
+        if (currentUser == null) return;
+
+        // Cek apakah input persis sama dengan email user (abaikan huruf besar/kecil)
+        if (input.Trim().ToLower() == currentUser.Email.ToLower())
+        {
+            // Jika cocok, nyalakan tombol Delete
+            confirmDeleteButton.interactable = true;
+            if (feedbackText != null) feedbackText.text = ""; 
+        }
+        else
+        {
+            // Jika belum cocok, matikan tombol
+            confirmDeleteButton.interactable = false;
+        }
+    }
+
+    /// <summary>
+    /// Dieksekusi saat tombol Delete yang sudah aktif diklik
+    /// </summary>
+    private async void OnDeleteButtonClicked()
+    {
+        if (currentUser == null) return;
+
+        // Matikan tombol agar tidak di-spam klik
+        confirmDeleteButton.interactable = false;
+        if (feedbackText != null)
+        {
+            feedbackText.color = Color.yellow;
+            feedbackText.text = "Deleting account and data... Please wait.";
+        }
+
+        string userId = currentUser.UserId;
+
+        try
+        {
+            // 1. Hapus data user dari Firestore terlebih dahulu
+            FirebaseFirestore db = FirebaseFirestore.DefaultInstance;
+            DocumentReference docRef = db.Collection("users").Document(userId);
+            await docRef.DeleteAsync();
+
+            // 2. Hapus akun Auth-nya dari Firebase
+            await currentUser.DeleteAsync();
+
+            Debug.Log("✅ [Delete Account] Akun dan data berhasil dihapus permanen.");
+
+            // 3. Panggil fungsi Logout bawaan untuk reset UI dan ubah data ke Guest Standard
+            if (FirebaseAuthPuzzle.Instance != null)
+            {
+                FirebaseAuthPuzzle.Instance.Logout();
+            }
+
+            // 4. Sembunyikan panel delete ini setelah proses selesai
+            gameObject.SetActive(false);
+        }
+        catch (Exception e)
+        {
+            Debug.LogError($"❌ [Delete Account] Gagal menghapus akun: {e.Message}");
+            
+            if (feedbackText != null)
+            {
+                feedbackText.color = Color.red;
+                
+                // Peringatan jika butuh login ulang karena alasan keamanan Firebase
+                if (e.Message.Contains("recent authentication"))
+                {
+                    feedbackText.text = "For security reasons, please logout and login again before deleting your account.";
+                }
+                else
+                {
+                    feedbackText.text = "Error deleting account. Please check your connection.";
+                }
+            }
+
+            // Nyalakan tombol lagi jika terjadi error
+            confirmDeleteButton.interactable = true;
+        }
+    }
+}
+Sekarang jalurnya sangat solid, Bang. Hapus Data Firestore -> Hapus Auth Firebase -> Eksekusi Logout (yang otomatis switch ke panel login dan reset PlayerPrefs/PointManager). Mantap! Kalau ada yang mau disesuaikan lagi, bilang saja ya.
+
+buatkan promotion text , description dan keyword untuk game Arena Match Blast dalam bahasa inggris
+
+Siap, Abang! Biar Abang bisa tetap fokus di urusan coding dan sistem teknisnya, ini saya siapkan draft ASO (App Store Optimization) lengkap untuk Arena Match Blast. Teks ini sudah dioptimalkan agar menarik bagi calon pemain dan ramah algoritma Google Play Store.
+
+Abang tinggal copy-paste saja ke Google Play Console!
+
+1. Promotional Text (Short Description)
+Pilih salah satu yang paling pas dengan gameplay Abang (Maksimal 80 karakter untuk Google Play):
+
+Option A (Action/Pace focus): Match, blast, and conquer the arena in this explosive puzzle adventure!
+
+Option B (Competitive focus): Blast your way to the top of the arena! The ultimate match puzzle challenge.
+
+Option C (Casual focus): Pop blocks, trigger epic combos, and clear the arena. Fun, fast, and free!
+
+2. Full Description (Long Description)
+Teks ini dirancang dengan format poin-poin agar mudah dibaca (scannable) oleh user di layar HP.
+
+Welcome to Arena Match Blast! 🚀
+Get ready for the ultimate puzzle-solving experience! Dive into the arena where your matching skills are put to the test. Tap, match, and blast colorful blocks to clear levels, trigger massive chain reactions, and unlock amazing rewards.
+
+Whether you are looking for a quick brain teaser to pass the time or a challenging puzzle to master, Arena Match Blast delivers endless fun and explosive gameplay!
+
+✨ KEY FEATURES:
+
+🔥 Explosive Match Gameplay: Tap 2 or more blocks of the same color to blast them away. Match more blocks to create powerful boosters like Rockets, Bombs, and Rainbow Blasters!
+
+🏆 Challenging Arenas: Travel through dozens of unique arenas, each with its own layout, obstacles, and special puzzle mechanics.
+
+🧩 Brain-Teasing Levels: Overcome tricky obstacles, collect specific items, and achieve high scores before you run out of moves.
+
+🎁 Daily Rewards & Challenges: Log in every day to claim free coins, extra lives, and exclusive power-ups to help you conquer the toughest levels.
+
+🌟 Stunning Graphics & Effects: Enjoy vibrant visuals, smooth animations, and satisfying sound effects with every blast you make.
+
+📶 Play Offline: No Wi-Fi? No problem! Enjoy the game anytime, anywhere, even without an internet connection.
+
+How to Play:
+
+Tap adjacent blocks of the same color to blast them.
+
+Combine special boosters to clear the board faster.
+
+Complete the level objectives to win and progress to the next arena!
+
+Are you ready to become the champion of the arena? Download Arena Match Blast now and start your blasting adventure today!
+
+3. Keywords / Search Tags
+Gunakan keyword ini saat mengisi tag di konsol publikasi, atau selipkan di dalam teks deskripsi untuk membantu SEO.
+
+Primary Keywords (Kategori Utama):
+
+match puzzle, blast game, block puzzle, match 3, puzzle adventure
+
+Secondary Keywords (Fitur & Target Audiens):
+
+arena match, casual game, brain teaser, offline puzzle, tap to blast, color block puzzle, relax game, combo blast, puzzle champion, logic puzzle, free puzzle game
+
+Action Keywords (Untuk algoritma pencarian yang spesifik):
+
+pop blocks, clear board, puzzle challenge, match and blast, block smasher
+
+Silakan disesuaikan kalau misalnya di game Abang ada fitur khusus (seperti multiplayer atau leaderboard). Nanti tinggal kita tambahkan sedikit ke deskripsinya!
+
+ini gamenya seperti itu
+
+buatkan promotion text , description dan keyword untuk game Arena Match Blast dalam bahasa inggris
+
+Wah, mantap Bang videonya! Sekarang kebayang banget gameplay aslinya. Tema karakternya unik ya, pakai elemen alat-alat olahraga lucu seperti bola basket, sepeda, raket tenis, dan barbel. Selain itu, sistem leaderboard yang memunculkan avatar player lain (seperti peringkat 1, 2, dan 3) langsung di atas peta level itu fitur yang sangat menarik untuk menonjolkan sisi kompetitifnya.
+
+Ini dia draft ASO (App Store Optimization) yang sudah saya rombak total agar 100% akurat dengan fitur-fitur yang ada di video game Abang. Tinggal copy-paste ke Google Play Console!
+
+1. Promotional Text (Short Description)
+Pilih salah satu yang paling sesuai (Maksimal 80 karakter):
+
+Option A: Blast sporty blocks, trigger epic combos, and claim 1st place in the arena!
+
+Option B: Match, blast, and climb the global leaderboard in this sports puzzle adventure!
+
+Option C: Pop sports blocks, use powerful boosters, and conquer the puzzle arena map!
+
+2. Full Description (Long Description)
+Welcome to Arena Match Blast! 🏆🧩
+Get ready to sweat it out in the most fun and competitive puzzle arena! Arena Match Blast combines satisfying tap-to-blast gameplay with a unique sports theme and exciting global competition.
+
+Tap and blast colorful sports-themed blocks—like basketballs, bicycles, and dumbbells—to clear the board and conquer challenging levels. Plan your moves carefully, achieve your goals, and watch your rank climb on the global map!
+
+✨ KEY FEATURES:
+
+🏀 Sporty Match Action: Tap 2 or more blocks of the same color to blast them away. The more blocks you match, the bigger the explosion!
+
+🚀 Powerful Boosters: Stuck on a level? Use special items like Bombs, Rockets, and Disco Balls to clear massive areas and trigger epic chain reactions.
+
+🌍 Interactive Leaderboard Map: Compete against players worldwide! Check the level map to see the avatars of the 1st, 2nd, and 3rd place players right next to your path. Can you claim the top spot?
+
+🎯 Challenging Level Goals: Every level brings a new challenge. Collect specific items (like cute flowers), maximize your score, and finish with moves left to trigger the ultimate "Arena Match!" bonus.
+
+⭐ Level Up & Earn Points: Complete stages to earn XP, challenge points, and up to 3 stars per level to upgrade your rank from Novice to Champion.
+
+👤 Personal Profile System: Create your account, customize your avatar, and track your global rank and experience points directly from the main menu.
+
+How to Play:
+
+Tap adjacent sports blocks of the same color to smash them.
+
+Create and combine special boosters to blast through obstacles.
+
+Complete the level goal before you run out of moves!
+
+Step onto the court and prove your puzzle skills. Download Arena Match Blast now and blast your way to the top of the global leaderboard!
+
+3. Keywords / Search Tags
+Gunakan keyword ini saat mengisi tag di Google Play Console:
+
+Primary Keywords (Kategori Utama):
+
+blast puzzle, match game, block puzzle, tap to blast, puzzle adventure
+
+Secondary/Niche Keywords (Sesuai Fitur Video):
+
+sports puzzle, arena game, leaderboard puzzle, competitive match game, brain teaser, casual puzzle, combo blast, popping blocks
+
+Action Keywords:
+
+climb ranks, smash blocks, clear the board, match and blast, puzzle champion
+
+buatkan html untuk privacy police, tanpa iklan, login register dan fitur yg sudah ada
+
+File HTML untuk Privacy Policy (Kebijakan Privasi) game Abang sudah siap!
+Ikon HTML
+ PrivacyPol...MatchBlast 
+HTML
+
+Dokumen HTML ini sudah saya rancang agar terlihat profesional, bersih, dan modern dengan inline CSS sehingga Abang bisa langsung membukanya di browser atau meng-upload-nya ke website/hosting (seperti di mirandodev.online).
+
+Berikut adalah poin-poin fitur game yang sudah saya masukkan ke dalam kebijakannya:
+
+Zero-Ads (Tanpa Iklan): Penegasan bahwa game ini 100% bebas dari iklan pihak ketiga dan pelacakan Ad-ID.
+
+Sistem Login & Profil: Penjelasan tentang penggunaan Firebase Auth dan Firestore untuk mengamankan data email, password, username, dan sinkronisasi gambar avatar.
+
+Data Gameplay & Fitur: Penjelasan mengenai penyimpanan data lokal (koin, challenge points, nyawa, dll) untuk kebutuhan Global Leaderboard dan peta arena.
+
+Kebijakan Hapus Akun (Delete Account): Penjelasan detail mengenai alur hapus akun in-app yang baru saja kita buat (lengkap dengan sistem verifikasi ketik email yang langsung menghapus data secara permanen dari server).
+
+Abang bisa langsung menggunakan file ini untuk persyaratan rilis di Google Play Console. Jika ada tambahan atau perubahan kata, silakan beri tahu saya!
+
+Developer ARENAGO, kontak  support@arenago.id
+
+Siap, Abang! File HTML Privacy Policy-nya sudah saya perbarui sesuai instruksi. Nama developer sudah diganti menjadi ARENAGO dan bagian kontak sudah diubah langsung mengarah ke email support@arenago.id.
+Ikon HTML
+ PrivacyPol...st_Updated 
+HTML
+
+[file-tag: code-generated-file-1-1779172026541244343]
+
+Abang bisa langsung menggunakan file HTML terbaru ini. Kalau ada bagian lain yang ingin disesuaikan lagi, langsung kabari saya ya!
+
+
+
+
+
+Gemini adalah AI dan dapat melakukan kesalahan.
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,11 +3704,11 @@
     <header>
         <h1>Privacy Policy</h1>
         <p class="subtitle">Effective Date: May 19, 2026</p>
-        <p class="subtitle"><strong>Arena Match Blast</strong> &bull; Developed by RioGames</p>
+        <p class="subtitle"><strong>Arena Match Blast</strong> &bull; Developed by ARENAGO</p>
     </header>
 
     <section>
-        <p>Welcome to <strong>Arena Match Blast</strong>. Your privacy is critically important to us. This Privacy Policy explains how RioGames ("we", "us", or "our") collects, uses, discloses, and safeguards your information when you play our mobile game Arena Match Blast (the "Game").</p>
+        <p>Welcome to <strong>Arena Match Blast</strong>. Your privacy is critically important to us. This Privacy Policy explains how ARENAGO ("we", "us", or "our") collects, uses, discloses, and safeguards your information when you play our mobile game Arena Match Blast (the "Game").</p>
         <p>Please read this privacy policy carefully. If you do not agree with the terms of this privacy policy, please do not access the application.</p>
     </section>
 
@@ -147,13 +3766,16 @@
 
     <section>
         <h2>7. Contact Us</h2>
-        <p>If you have any questions, feedback, or concerns regarding this Privacy Policy or your data, please contact us via our official portfolio platform at <strong>mirandodev.online</strong> or via support channels.</p>
+        <p>If you have any questions, feedback, or concerns regarding this Privacy Policy or your data, please contact us at:</p>
+        <p><strong>Email:</strong> <a href="mailto:support@arenago.id">support@arenago.id</a></p>
     </section>
 
     <footer>
-        <p>&copy; 2026 RioGames. All Rights Reserved.</p>
+        <p>&copy; 2026 ARENAGO. All Rights Reserved.</p>
     </footer>
 </div>
 
 </body>
 </html>
+PrivacyPolicy_ArenaMatchBlast_Updated.html
+Menampilkan PrivacyPolicy_ArenaMatchBlast_Updated.html.
